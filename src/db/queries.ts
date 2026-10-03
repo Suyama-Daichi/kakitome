@@ -23,6 +23,7 @@ export interface NoteRow {
   body: string;
   pinned: number;
   conflict_of: string | null;
+  conflict_count: number;
   open_count: number;
   total_count: number;
 }
@@ -31,14 +32,15 @@ export interface NoteRow {
 export function listNotes(): NoteRow[] {
   return getDb().getAllSync<NoteRow>(
     `SELECT n.id, n.title, n.body, n.pinned, n.conflict_of,
+       (SELECT COUNT(*) FROM notes c WHERE c.conflict_of = n.id AND c.deleted = 0) AS conflict_count,
        (SELECT COUNT(*) FROM checklist_items i WHERE i.note_id = n.id AND i.deleted = 0 AND i.checked = 0) AS open_count,
        (SELECT COUNT(*) FROM checklist_items i WHERE i.note_id = n.id AND i.deleted = 0) AS total_count
      FROM notes n WHERE n.deleted = 0 ORDER BY n.pinned DESC, n.sort_key, n.id`,
   );
 }
 
-export function getNote(id: string): Pick<NoteRow, 'id' | 'title' | 'body' | 'pinned'> | undefined {
-  return getDb().getFirstSync('SELECT id, title, body, pinned FROM notes WHERE id = ? AND deleted = 0', id) ?? undefined;
+export function getNote(id: string): Pick<NoteRow, 'id' | 'title' | 'body' | 'pinned' | 'conflict_of'> | undefined {
+  return getDb().getFirstSync('SELECT id, title, body, pinned, conflict_of FROM notes WHERE id = ? AND deleted = 0', id) ?? undefined;
 }
 
 export function listItems(noteId: string): Item[] {
@@ -118,3 +120,52 @@ export const listAttachments = (noteId: string) =>
 
 export const maxAttachmentKey = (noteId: string) =>
   getDb().getFirstSync<{ k: string | null }>("SELECT MAX(sort_key) AS k FROM attachments WHERE note_id = ? AND sort_key != ''", noteId)?.k ?? null;
+
+export interface ConflictView {
+  /** 競合コピーのメモ ID */
+  copyId: string;
+  /** 元のメモ ID */
+  noteId: string;
+  field: 'title' | 'body';
+  /** 競合コピーの値（負けた側） */
+  theirs: string;
+  /** 元メモの現在の値 */
+  ours: string;
+  /** 分岐元の値。圧縮などで取り出せないときは null */
+  base: string | null;
+}
+
+/**
+ * 分岐元の値: conflict_base_hlc を書いた op を ops から引いて取り出す（設計 §5.4）。
+ * 圧縮で途中の op が無い端末では null（2 方向の比較だけを表示する）。
+ */
+export function baseValue(baseHlc: string | null, noteId: string, field: string): string | null {
+  if (!baseHlc) return null;
+  const rows = getDb().getAllSync<{ payload: string }>('SELECT payload FROM ops WHERE hlc = ?', baseHlc);
+  for (const r of rows) {
+    const op = JSON.parse(r.payload) as { entity: string; entityId: string; fields: Record<string, unknown> };
+    if (op.entity === 'note' && op.entityId === noteId && typeof op.fields[field] === 'string') return op.fields[field] as string;
+  }
+  return null;
+}
+
+function toConflict(r: { id: string; conflict_of: string; conflict_field: string; conflict_base_hlc: string | null; copy_val: string; orig_val: string | null }): ConflictView {
+  const field = r.conflict_field as 'title' | 'body';
+  return { copyId: r.id, noteId: r.conflict_of, field, theirs: r.copy_val, ours: r.orig_val ?? '', base: baseValue(r.conflict_base_hlc, r.conflict_of, field) };
+}
+
+const CONFLICT_SQL = `SELECT c.id, c.conflict_of, c.conflict_field, c.conflict_base_hlc,
+    CASE c.conflict_field WHEN 'title' THEN c.title ELSE c.body END AS copy_val,
+    CASE c.conflict_field WHEN 'title' THEN o.title ELSE o.body END AS orig_val
+  FROM notes c LEFT JOIN notes o ON o.id = c.conflict_of
+  WHERE c.deleted = 0 AND c.conflict_of IS NOT NULL`;
+
+/** メモに紐づく未解消の競合（元メモからも競合コピーからも引ける） */
+export function conflictsFor(noteId: string): ConflictView[] {
+  return getDb()
+    .getAllSync<Parameters<typeof toConflict>[0]>(`${CONFLICT_SQL} AND (c.conflict_of = ? OR c.id = ?) ORDER BY c.sort_key`, noteId, noteId)
+    .map(toConflict);
+}
+
+export const conflictCount = (noteId: string) =>
+  getDb().getFirstSync<{ n: number }>('SELECT COUNT(*) AS n FROM notes WHERE deleted = 0 AND conflict_of = ?', noteId)?.n ?? 0;

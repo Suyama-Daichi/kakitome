@@ -2,7 +2,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { addItem, deleteItem, toggleItem, updateItemText, updateNote } from '../../db/actions';
-import { getNote, listItems, type Item } from '../../db/queries';
+import { conflictCount, getNote, listItems, type Item } from '../../db/queries';
 import { AttachmentSection } from '../../components/AttachmentSection';
 import { ReminderSection } from '../../components/ReminderSection';
 import { subscribeDbChanges } from '../../db/changes';
@@ -55,7 +55,11 @@ export default function NoteEditor() {
   const [body, setBody] = useState(note?.body ?? '');
   const [pinned, setPinned] = useState(note?.pinned ?? 0);
   const [items, setItems] = useState<Item[]>(() => listItems(id));
-  const reload = useCallback(() => setItems(listItems(id)), [id]);
+  const [conflicts, setConflicts] = useState(() => conflictCount(id));
+  const reload = useCallback(() => {
+    setItems(listItems(id));
+    setConflicts(conflictCount(id));
+  }, [id]);
 
   // 同期で届いた変更は項目一覧にだけ反映する。入力中のタイトル・本文は上書きしない（保存時に LWW で解決）
   useEffect(() => subscribeDbChanges(reload), [reload]);
@@ -83,6 +87,11 @@ export default function NoteEditor() {
           ),
         }}
       />
+      {conflicts > 0 || note.conflict_of ? (
+        <Pressable style={styles.conflict} onPress={() => router.push({ pathname: '/conflict/[id]', params: { id } })}>
+          <Text style={styles.conflictText}>⚠ 別の端末の編集と競合しました。タップして解消する</Text>
+        </Pressable>
+      ) : null}
       <TextInput style={styles.titleInput} value={title} onChangeText={setTitle} placeholder="タイトル" />
       <TextInput style={styles.bodyInput} value={body} onChangeText={setBody} placeholder="メモ" multiline />
       {items.map((it) => <ItemRow key={it.id} item={it} onChange={reload} />)}
@@ -99,6 +108,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   content: { padding: 16, paddingBottom: 80 },
   missing: { padding: 24, textAlign: 'center', color: '#888' },
+  conflict: { backgroundColor: '#fff4e0', borderRadius: 8, padding: 10, marginBottom: 8 },
+  conflictText: { color: '#8a5a00', fontSize: 14 },
   titleInput: { fontSize: 22, fontWeight: '700', paddingVertical: 8 },
   bodyInput: { fontSize: 16, minHeight: 60, paddingVertical: 8, textAlignVertical: 'top' },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 2 },

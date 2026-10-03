@@ -29,7 +29,7 @@ export default function NoteList() {
               {n.pinned ? '📌 ' : ''}{n.title || n.body.split('\n')[0] || '無題のメモ'}
             </Text>
             <Text style={styles.sub} numberOfLines={1}>
-              {n.conflict_of ? '⚠ 競合コピー　' : ''}
+              {n.conflict_of ? '⚠ 競合コピー　' : ''}{n.conflict_count ? `⚠ 競合あり（${n.conflict_count}件）　` : ''}
               {n.total_count ? `${n.total_count - n.open_count}/${n.total_count} 完了　` : ''}
               {n.title ? n.body.split('\n')[0] : ''}
             </Text>

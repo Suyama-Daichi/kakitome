@@ -120,3 +120,16 @@ export function deleteAttachment(id: string) {
   const { ctx, tx } = openCore();
   tx(() => applyLocalOp(ctx, 'attachment', id, { deleted: 1 }));
 }
+
+/**
+ * 競合の解消（設計 §5.4）: 元メモのフィールドを resolved にし、競合コピーを墓標にする。
+ * どちらも通常の編集（applyLocalOp）なので、他端末にも同じ形で伝わる。
+ */
+export function resolveConflict(conflict: { copyId: string; noteId: string; field: 'title' | 'body' }, resolved: string) {
+  const { ctx, tx } = openCore();
+  tx(() => {
+    const cur = getNote(conflict.noteId) as Record<string, Json> | undefined;
+    if (cur && cur[conflict.field] !== resolved) applyLocalOp(ctx, 'note', conflict.noteId, { [conflict.field]: resolved });
+    applyLocalOp(ctx, 'note', conflict.copyId, { deleted: 1 });
+  });
+}

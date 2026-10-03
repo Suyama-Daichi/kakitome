@@ -24,6 +24,7 @@ export default function RootLayout() {
     <Stack>
       <Stack.Screen name="index" options={{ title: 'kakitome' }} />
       <Stack.Screen name="note/[id]" options={{ title: '' }} />
+      <Stack.Screen name="conflict/[id]" options={{ title: '競合の解消' }} />
       <Stack.Screen name="settings" options={{ title: '設定' }} />
     </Stack>
   );
