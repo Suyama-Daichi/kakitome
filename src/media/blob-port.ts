@@ -100,7 +100,7 @@ export function createBlobPort(): BlobPort {
 
     dropBlob: async (hash) => {
       const b = db.getFirstSync<{ local: number; uploaded: number }>('SELECT local_path IS NOT NULL AS local, uploaded FROM blobs WHERE hash = ?', hash);
-      if (b?.local && !b.uploaded) return; // 未アップロードの実体は消さない（CLAUDE.md の不変条件）
+      if (b?.local && !b.uploaded) return; // 未アップロードの実体は消さない（AGENTS.md の不変条件）
       deleteBlobFile(hash);
       db.runSync('DELETE FROM blobs WHERE hash = ?', hash);
     },

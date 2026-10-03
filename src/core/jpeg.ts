@@ -1,4 +1,4 @@
-// JPEG のメタデータ（EXIF=位置情報など）除去。画像はアップロード前に必ず通す（CLAUDE.md の不変条件）。
+// JPEG のメタデータ（EXIF=位置情報など）除去。画像はアップロード前に必ず通す（AGENTS.md の不変条件）。
 // 向き(Orientation)も EXIF にあるため、除去の前に画素へ反映済みであること（src/media/process.ts）。
 
 /** 取り除くセグメント: APP1(EXIF/XMP)、APP3-13・15、COM。JFIF(APP0)・ICC(APP2)・Adobe(APP14) は描画に要るので残す */
