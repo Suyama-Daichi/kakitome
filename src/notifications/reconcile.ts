@@ -41,6 +41,21 @@ export function reconcileReminders(now = new Date()): Promise<void> {
   return next;
 }
 
+/**
+ * 予約をすべて取り消して作り直す。正確なアラームの許可が変わった後に使う
+ * （既存の予約は、予約時点の許可状態で方式が決まっているため）
+ */
+export function rescheduleAllReminders(): Promise<void> {
+  const next = chain.then(async () => {
+    const db = getDb();
+    for (const s of scheduledNotifications()) await Notifications.cancelScheduledNotificationAsync(s.notificationId);
+    db.runSync('DELETE FROM scheduled_notifications');
+    await doReconcile(new Date());
+  });
+  chain = next.catch(() => {});
+  return next;
+}
+
 /** ローカル編集のたびに呼ぶ。入力が落ち着いてから 1 回だけ調停 */
 export function reconcileSoon(ms = 1500) {
   clearTimeout(timer);

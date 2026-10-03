@@ -1,8 +1,11 @@
+import Constants from 'expo-constants';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as BackgroundTask from 'expo-background-task';
 import { lastSyncAt, lastSyncError, unsentOpCount } from '../db/queries';
+import { rescheduleAllReminders } from '../notifications/reconcile';
 import { currentEmail, isSignedIn, signIn, signOut } from '../sync/google-auth';
 import { runSync } from '../sync/run';
 
@@ -63,6 +66,29 @@ export default function Settings() {
           <Text style={[styles.buttonText, styles.secondaryText]}>（開発用）バックグラウンド同期を実行</Text>
         </Pressable>
       ) : null}
+      {Platform.OS === 'android' && Number(Platform.Version) >= 31 ? (
+        <View style={styles.section}>
+          <Text style={styles.heading}>リマインドの時刻</Text>
+          <Text style={styles.note}>
+            「アラームとリマインダー」を許可すると、リマインドが指定の時刻ちょうどに鳴ります。許可しない場合は、数十秒から1分ほど遅れることがあります。
+          </Text>
+          <Pressable
+            style={[styles.button, styles.secondary]}
+            disabled={busy}
+            onPress={() =>
+              run(async () => {
+                // 設定画面から戻るまで待ち、許可が変わっていても反映されるよう予約を作り直す
+                await IntentLauncher.startActivityAsync('android.settings.REQUEST_SCHEDULE_EXACT_ALARM', {
+                  data: `package:${Constants.expoConfig?.android?.package ?? 'app.kakitome'}`,
+                });
+                await rescheduleAllReminders();
+              }, '')
+            }
+          >
+            <Text style={[styles.buttonText, styles.secondaryText]}>正確な時刻で鳴らす（システム設定を開く）</Text>
+          </Pressable>
+        </View>
+      ) : null}
       {busy ? <ActivityIndicator style={styles.spinner} /> : null}
       {message ? <Text style={styles.message}>{message}</Text> : null}
     </View>
@@ -79,6 +105,7 @@ const styles = StyleSheet.create({
   secondary: { backgroundColor: '#eee' },
   secondaryText: { color: '#333' },
   error: { color: '#b3261e' },
+  section: { gap: 12, marginTop: 16 },
   spinner: { marginTop: 8 },
   message: { marginTop: 8, color: '#444' },
 });
