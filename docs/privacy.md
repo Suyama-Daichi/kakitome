@@ -1,5 +1,5 @@
 ---
-title: プライバシーポリシー | kakitome
+title: プライバシーポリシー
 ---
 
 # kakitome プライバシーポリシー
