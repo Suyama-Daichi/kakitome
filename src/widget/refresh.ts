@@ -1,15 +1,3 @@
-import { Platform } from 'react-native';
-import { requestWidgetUpdate } from 'react-native-android-widget';
-import { createElement } from 'react';
-import { firstNoteWithItems } from '../db/queries';
-import { ChecklistWidget } from './ChecklistWidget';
-
-/** アプリ内の変更をホーム画面のウィジェットへ反映する（Android のみ） */
-export function refreshWidget() {
-  if (Platform.OS !== 'android') return;
-  requestWidgetUpdate({
-    widgetName: 'Checklist',
-    renderWidget: () => createElement(ChecklistWidget, { note: firstNoteWithItems() }),
-    widgetNotFound: () => {},
-  }).catch(() => {});
-}
+// iOS・その他: ウィジェットは Android のみ（iOS ウィジェットは将来 expo-widgets で検討。設計 §1.3）。
+// react-native-android-widget は読み込んだだけで iOS では落ちるので、Android 用は refresh.android.ts に分けている
+export function refreshWidget() {}

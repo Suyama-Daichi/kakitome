@@ -1,13 +1,20 @@
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { DRIVE_APPDATA_SCOPE, WEB_CLIENT_ID } from './config';
+import { Platform } from 'react-native';
+import { DRIVE_APPDATA_SCOPE, IOS_CLIENT_ID, WEB_CLIENT_ID } from './config';
 
-GoogleSignin.configure({ webClientId: WEB_CLIENT_ID, scopes: [DRIVE_APPDATA_SCOPE] });
+/** iOS は iOS 用クライアント ID が無いと設定自体が例外になる。未設定の間はサインインを利用不可として扱う */
+export const googleAvailable = Platform.OS !== 'ios' || IOS_CLIENT_ID !== null;
 
-export const isSignedIn = () => GoogleSignin.hasPreviousSignIn();
-export const currentEmail = () => GoogleSignin.getCurrentUser()?.user.email ?? null;
+if (googleAvailable) {
+  GoogleSignin.configure({ webClientId: WEB_CLIENT_ID, iosClientId: IOS_CLIENT_ID ?? undefined, scopes: [DRIVE_APPDATA_SCOPE] });
+}
+
+export const isSignedIn = () => googleAvailable && GoogleSignin.hasPreviousSignIn();
+export const currentEmail = () => (googleAvailable ? (GoogleSignin.getCurrentUser()?.user.email ?? null) : null);
 
 /** キャンセル時は false */
 export async function signIn(): Promise<boolean> {
+  if (!googleAvailable) throw new Error('この環境では Google サインインを設定していません（iOS 用クライアント ID が未設定）');
   await GoogleSignin.hasPlayServices();
   return (await GoogleSignin.signIn()).type === 'success';
 }

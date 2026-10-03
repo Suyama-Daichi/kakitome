@@ -57,7 +57,14 @@
         }
       ],
       "expo-background-task",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "メモに添付する画像を選ぶために、写真ライブラリへアクセスします。"
+        }
+      ],
+      "./plugins/withIosScene"
     ],
     "experiments": {
       "typedRoutes": true,

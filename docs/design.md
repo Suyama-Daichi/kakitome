@@ -79,6 +79,14 @@ Expo を選んだ理由: 全要件が Expo のまま（Kotlin / Swift を書か�
 
 ---
 
+### 2.2 iOS 対応の取り決め
+
+- **ウィジェットは Android 専用**: `react-native-android-widget` は読み込んだだけで iOS では落ちるため、ウィジェット関連は `*.android.ts` に分け、iOS では何もしない版（`refresh.ts`、`register.ts`）を使う
+- **UIScene ライフサイクル**: iOS 27 は UIScene を採用していないアプリを起動時に落とす。Expo SDK 57 の `ExpoAppSceneDelegate` を使うよう、設定プラグイン `plugins/withIosScene.js` が prebuild で `AppDelegate`（`ExpoReactNativeFactoryProvider` に準拠、React Native の自前起動を削除）と `Info.plist`（`UIApplicationSceneManifest`）を書き換える。`ios/` は生成物なのでコミットしない
+- **Google サインイン**: iOS 用 OAuth クライアント ID（`src/sync/config.ts` の `IOS_CLIENT_ID`）が無いと設定自体が例外になるため、未設定の間は iOS ではサインインを利用不可として扱う（他の機能は動く）。設定したら `@react-native-google-signin/google-signin` の設定プラグインに `iosUrlScheme`（クライアント ID を逆順にした `com.googleusercontent.apps.…`）も指定する
+- **リマインド**: 繰り返しは OS のネイティブ繰り返し（カレンダー）トリガー。正確なアラームの許可は iOS には無い
+- **未確認**: iOS 実機・シミュレータでの各機能（編集・画像・リマインド・同期）の動作
+
 ## 3. データモデル
 
 ### 3.1 設計原則
