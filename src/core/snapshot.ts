@@ -1,7 +1,7 @@
 // op の圧縮（設計 §6.4）。各端末は自分の op だけを、フィールドごとに「最新の値」へまとめる。
 // 自端末が後で上書きした値は捨てて構わない（データは失われない）。
 import { parseHlc } from './hlc';
-import type { Entity, Json, Op } from './ops';
+import { ENTITIES, isPrimitive, type Entity, type Json, type Op } from './ops';
 
 export interface SnapshotEntry {
   entity: Entity;
@@ -27,8 +27,6 @@ export interface Snapshot {
   entries: SnapshotEntry[];
 }
 
-const ENTITIES = ['note', 'checklist_item', 'reminder', 'attachment'];
-const isPrimitive = (v: unknown): v is Json => v === null || ['string', 'number', 'boolean'].includes(typeof v);
 
 /** `ops` のうち、device 自身が作ったもの（導出された競合コピーの op や他端末の op は除く）をまとめる */
 export function buildSnapshot(device: string, ops: Op[]): Snapshot {

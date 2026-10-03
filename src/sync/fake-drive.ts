@@ -1,4 +1,4 @@
-import type { ChangePage, DriveClient, DriveFile } from './drive';
+import { DriveError, type ChangePage, type DriveClient, type DriveFile } from './drive';
 
 /** テスト用のインメモリ Drive。changes のトークンは変更ログの添字 */
 export class FakeDrive implements DriveClient {
@@ -17,7 +17,7 @@ export class FakeDrive implements DriveClient {
 
   private content(id: string) {
     const f = this.files.get(id);
-    if (!f) throw new Error('Drive API 404: File not found');
+    if (!f) throw new DriveError(404, 'File not found');
     return f.content;
   }
 

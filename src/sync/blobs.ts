@@ -38,8 +38,8 @@ export interface BlobPort {
 }
 
 const DAY = 86_400_000;
-export const BLOB_GRACE_MS = 30 * DAY; // 墓標から 30 日（設計 §7.4 の例）
-export const CACHE_LIMIT_BYTES = 500 * 1024 * 1024;
+const BLOB_GRACE_MS = 30 * DAY; // 墓標から 30 日（設計 §7.4 の例）
+const CACHE_LIMIT_BYTES = 500 * 1024 * 1024;
 
 /**
  * Drive 上の不要な blob を削除する（1 日 1 回まで）。
@@ -63,7 +63,7 @@ export async function trimCache(port: BlobPort, limitBytes = CACHE_LIMIT_BYTES):
   for (const h of planCacheEviction({ bodies: port.cacheBodies(), limitBytes })) await port.evictLocal(h);
 }
 
-export const blobName = (hash: string) => `blob_${hash}`;
+const blobName = (hash: string) => `blob_${hash}`;
 
 export async function uploadBlob(drive: DriveClient, port: BlobPort, hash: string): Promise<void> {
   const known = port.remoteId(hash);

@@ -79,7 +79,12 @@ Expo を選んだ理由: 全要件が Expo のまま（Kotlin / Swift を書か�
 
 ---
 
-### 2.2 iOS 対応の取り決め
+### 2.2 実装上の取り決め（依存・開発用コード）
+
+- 依存は、使うものだけにする。`create-expo-app` のテンプレートが入れる `expo-font` `expo-device` `expo-symbols` `expo-glass-effect` `expo-web-browser` `expo-status-bar` `@expo/ui` `react-native-reanimated` `react-native-worklets` `react-native-gesture-handler` `react-native-web` `react-dom` は削除済み（Web は対象外。`expo-router` の optional peer のため外せる）。`expo-linking` `expo-constants` `react-native-safe-area-context` `react-native-screens` は `expo-router` の必須 peer
+- 開発ビルド専用の操作（競合の再現、圧縮の強制、Drive 上のファイル削除など）は `src/dev/DevTools.tsx` にまとめ、設定画面は `__DEV__` のときだけ読み込む
+
+### 2.3 iOS 対応の取り決め
 
 - **ウィジェットは Android 専用**: `react-native-android-widget` は読み込んだだけで iOS では落ちるため、ウィジェット関連は `*.android.ts` に分け、iOS では何もしない版（`refresh.ts`、`register.ts`）を使う
 - **UIScene ライフサイクル**: iOS 27 は UIScene を採用していないアプリを起動時に落とす。Expo SDK 57 の `ExpoAppSceneDelegate` を使うよう、設定プラグイン `plugins/withIosScene.js` が prebuild で `AppDelegate`（`ExpoReactNativeFactoryProvider` に準拠、React Native の自前起動を削除）と `Info.plist`（`UIApplicationSceneManifest`）を書き換える。`ios/` は生成物なのでコミットしない

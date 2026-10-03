@@ -11,3 +11,6 @@ export interface Op {
   /** 編集時に見ていた各フィールドの HLC（競合検出用）。新規フィールドは持たない */
   base: Record<string, string>;
 }
+
+export const ENTITIES: readonly string[] = ['note', 'checklist_item', 'reminder', 'attachment'];
+export const isPrimitive = (v: unknown): v is Json => v === null || ['string', 'number', 'boolean'].includes(typeof v);

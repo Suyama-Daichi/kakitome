@@ -3,7 +3,7 @@ import * as TaskManager from 'expo-task-manager';
 import { isSignedIn } from './google-auth';
 import { runSync } from './run';
 
-export const SYNC_TASK = 'kakitome-sync';
+const SYNC_TASK = 'kakitome-sync';
 
 // グローバルスコープで定義する必要がある（ルートの index.ts から import される）
 TaskManager.defineTask(SYNC_TASK, async () => {

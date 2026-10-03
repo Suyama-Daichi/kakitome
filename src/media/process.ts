@@ -1,14 +1,13 @@
-import * as Crypto from 'expo-crypto';
 import { File } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { stripJpegMetadata } from '../core/jpeg';
 import type { ProcessedImage } from '../db/actions';
+import { sha256Hex } from './blob-port';
 import { writeBlob } from './blobs';
 
 const MAIN_EDGE = 2048; // 設計 §7.2
 const THUMB_EDGE = 320;
 
-const hex = (buf: ArrayBuffer) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
 
 /** 長辺が maxEdge を超えるときだけ縮小し、JPEG で保存する（HEIC などもここで JPEG になる） */
 async function toJpeg(uri: string, maxEdge: number, compress: number) {
@@ -22,7 +21,7 @@ async function toJpeg(uri: string, maxEdge: number, compress: number) {
 async function store(tmpUri: string): Promise<{ hash: string; size: number }> {
   const tmp = new File(tmpUri);
   const bytes = stripJpegMetadata(await tmp.bytes());
-  const hash = hex(await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, bytes));
+  const hash = await sha256Hex(bytes);
   writeBlob(hash, bytes);
   tmp.delete();
   return { hash, size: bytes.length };

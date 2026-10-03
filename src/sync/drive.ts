@@ -32,6 +32,12 @@ export interface DriveClient {
   download(fileId: string): Promise<string>;
 }
 
+export class DriveError extends Error {
+  constructor(readonly status: number, body: string) {
+    super(`Drive API ${status}: ${body}`);
+  }
+}
+
 const API = 'https://www.googleapis.com/drive/v3';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
 const FILE_FIELDS = 'id,name,appProperties';
@@ -49,7 +55,7 @@ export function createDriveClient(
       await onUnauthorized(token);
       return call(url, init, true);
     }
-    if (!res.ok) throw new Error(`Drive API ${res.status}: ${await res.text()}`);
+    if (!res.ok) throw new DriveError(res.status, await res.text());
     return res;
   }
   const qs = (p: Record<string, string>) => new URLSearchParams(p).toString();
@@ -98,7 +104,7 @@ export function createDriveClient(
       try {
         await call(`${API}/files/${encodeURIComponent(fileId)}`, { method: 'DELETE' });
       } catch (e) {
-        if (!(e instanceof Error && e.message.startsWith('Drive API 404'))) throw e;
+        if (!(e instanceof DriveError && e.status === 404)) throw e;
       }
     },
 

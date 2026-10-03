@@ -1,11 +1,11 @@
 import { parseHlc } from '../core/hlc';
 import { mergeRemoteOps, type Ctx } from '../core/merge';
-import type { Op } from '../core/ops';
+import { ENTITIES, isPrimitive, type Op } from '../core/ops';
 import { buildSnapshot, parseSnapshot, snapshotToOps } from '../core/snapshot';
 import type { Store } from '../core/store';
 import { planUploads } from '../core/uploads';
 import { collectGarbage, downloadBlob, trimCache, uploadBlob, type BlobPort } from './blobs';
-import type { DriveClient, DriveFile } from './drive';
+import { DriveError, type DriveClient, type DriveFile } from './drive';
 
 export interface SyncStore extends Store {
   /** 送信待ち（自端末の op）を HLC 順で返す */
@@ -25,15 +25,12 @@ export interface SyncOptions {
   now?: () => number;
 }
 
-export const COMPACT_MIN_FILES = 20;
+const COMPACT_MIN_FILES = 20;
 const DAY = 86_400_000;
 const OWN_FILES = 'own_files';
 // 消失を検知したが、まだ再アップロードの準備（全 op を送信待ちに戻す）が済んでいない。検知の直後に通信エラーで落ちても忘れないよう永続化する
 const LOST = 'own_files_lost';
 
-const ENTITIES = ['note', 'checklist_item', 'reminder', 'attachment'];
-const isPrimitive = (v: unknown) => v === null || ['string', 'number', 'boolean'].includes(typeof v);
-const isNotFound = (e: unknown) => e instanceof Error && e.message.startsWith('Drive API 404');
 
 /** 壊れた行・不正な op で同期全体が止まらないよう、受信 op は形を検証して捨てる */
 function parseOps(text: string): Op[] {
@@ -115,7 +112,7 @@ export async function syncOnce(
       try {
         text = await drive.download(f.id);
       } catch (e) {
-        if (isNotFound(e)) continue; // 取得前に持ち主の端末が圧縮して消した。置き換えのスナップショットが別に届く
+        if (e instanceof DriveError && e.status === 404) continue; // 取得前に持ち主の端末が圧縮して消した。置き換えのスナップショットが別に届く
         throw e;
       }
       let ops: Op[];
