@@ -24,15 +24,19 @@
    - アップロード鍵: 上の SHA-1（`C4:E4:29:…:C0:60`）。EAS の production ビルドを、手元の端末に直接入れて試すときに使う
    - **Play アプリ署名の鍵**: Play Console →「アプリの完全性」→「アプリ署名」に表示される SHA-1（Play 経由でインストールされたアプリが使う。初回アップロード後に表示される）
 2. 「Google Auth Platform」→「対象」で、公開ステータスを「テスト」から「本番」へ。要求するスコープは `drive.appdata`（非センシティブ）と基本情報のみ
-3. 「ブランディング」: アプリ名、サポートメール、アプリのホームページ（`https://suyama-daichi.github.io/kakitome/`）、プライバシーポリシー（`.../privacy`）
-   - 注意: `github.io` は公開サフィックスのため、「承認済みドメイン」に追加できない可能性がある。その場合は独自ドメインが要る。**Console の画面で要否を確認する**
+3. 「ブランディング」: アプリ名、サポートメール、アプリのホームページ（`https://kakitome.d0nchan.com/`）、プライバシーポリシー（`.../privacy`）
+   - 承認済みドメインには `d0nchan.com` を登録する（`github.io` は公開サフィックスのため使えない可能性があり、独自ドメイン `kakitome.d0nchan.com` で公開している）。所有確認が求められた場合は Search Console 等で行う
 4. 本番にした後、テストユーザー以外の Google アカウントでサインインできることを確認する
 
 ## 3. プライバシーポリシーの公開
 
 - 文面: `docs/privacy.md`（連絡先メールアドレスを書き入れてから公開する）
 - GitHub のリポジトリ → Settings → Pages → Source を「Deploy from a branch」、Branch を `main` / `/docs` にする
-- URL: `https://suyama-daichi.github.io/kakitome/privacy`
+- URL: `https://kakitome.d0nchan.com/privacy`（独自ドメイン。`docs/CNAME`。旧 `suyama-daichi.github.io/kakitome/…` はこちらへリダイレクトされる）
+- DNS は Cloudflare の CNAME `kakitome` → `suyama-daichi.github.io`。**プロキシは無効（灰色の雲、「DNS のみ」）にすること**。プロキシ（オレンジの雲）にすると、次の 2 つの問題が起きる
+  - Cloudflare のメールアドレス難読化（Security → Settings の Email Address Obfuscation）で、プライバシーポリシーの連絡先が HTML 上で「[email protected]」に置き換わり、JavaScript を実行しないクローラーや審査では連絡先が見えなくなる
+  - GitHub 自身の証明書が発行されず、「Enforce HTTPS」が使えない（旧 URL のリダイレクト先が `http://` になる）
+- 現在の状態（確認済み）: GitHub の証明書は承認済みで「Enforce HTTPS」が有効。`http://` と旧 URL は `https://kakitome.d0nchan.com/…` へ到達する。`design` と `release` は 404（非公開）。連絡先は HTML に平文で入っている
 
 ## 4. Play Console
 
