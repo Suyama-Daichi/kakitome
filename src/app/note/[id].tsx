@@ -2,10 +2,10 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { addItem, deleteItem, toggleItem, updateItemText, updateNote } from '../../db/actions';
-import { conflictCount, getNote, listItems, type Item } from '../../db/queries';
+import { conflictCount, getNote, isBlankNote, listItems, type Item } from '../../db/queries';
 import { AttachmentSection } from '../../components/AttachmentSection';
 import { ReminderSection } from '../../components/ReminderSection';
-import { subscribeDbChanges } from '../../db/changes';
+import { notifyDbChanged, subscribeDbChanges } from '../../db/changes';
 import { onLocalChange } from '../../sync/auto';
 
 /** 入力のたびに op を出さないよう、入力が止まって 500ms 後と画面を離れるときに保存する */
@@ -66,6 +66,16 @@ export default function NoteEditor() {
 
   useAutosave(title, useCallback((v) => { updateNote(id, { title: v }); onLocalChange(); }, [id]));
   useAutosave(body, useCallback((v) => { updateNote(id, { body: v }); onLocalChange(); }, [id]));
+
+  // 何も入力せずに戻ったら、作ったメモを削除（墓標）する。各入力欄の保存が終わってから判定するため次のタスクに回す
+  useEffect(
+    () => () => {
+      setTimeout(() => {
+        if (isBlankNote(id)) { updateNote(id, { deleted: 1 }); onLocalChange(); notifyDbChanged(); } // 一覧は戻った時点で読み込み済みなので再読み込みさせる
+      }, 0);
+    },
+    [id],
+  );
 
   if (!note) return <Text style={styles.missing}>このメモは削除されました</Text>;
 

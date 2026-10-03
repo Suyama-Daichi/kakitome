@@ -43,6 +43,19 @@ export function getNote(id: string): Pick<NoteRow, 'id' | 'title' | 'body' | 'pi
   return getDb().getFirstSync('SELECT id, title, body, pinned, conflict_of FROM notes WHERE id = ? AND deleted = 0', id) ?? undefined;
 }
 
+/** タイトル・本文・項目・リマインド・画像がすべて空の、作っただけのメモか */
+export function isBlankNote(id: string): boolean {
+  const n = getDb().getFirstSync<{ blank: number }>(
+    `SELECT trim(title) = '' AND trim(body) = '' AND conflict_of IS NULL
+       AND NOT EXISTS (SELECT 1 FROM checklist_items WHERE note_id = notes.id AND deleted = 0 AND trim(text) != '')
+       AND NOT EXISTS (SELECT 1 FROM reminders WHERE note_id = notes.id AND deleted = 0)
+       AND NOT EXISTS (SELECT 1 FROM attachments WHERE note_id = notes.id AND deleted = 0) AS blank
+     FROM notes WHERE id = ? AND deleted = 0`,
+    id,
+  );
+  return n?.blank === 1;
+}
+
 export function listItems(noteId: string): Item[] {
   return getDb().getAllSync<Item>(
     'SELECT id, text, checked FROM checklist_items WHERE note_id = ? AND deleted = 0 ORDER BY checked ASC, sort_key ASC, id',
