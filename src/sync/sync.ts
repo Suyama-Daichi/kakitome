@@ -3,7 +3,7 @@ import { mergeRemoteOps, type Ctx } from '../core/merge';
 import type { Op } from '../core/ops';
 import type { Store } from '../core/store';
 import { planUploads } from '../core/uploads';
-import { downloadBlob, uploadBlob, type BlobPort } from './blobs';
+import { collectGarbage, downloadBlob, trimCache, uploadBlob, type BlobPort } from './blobs';
 import type { DriveClient, DriveFile } from './drive';
 
 export interface SyncStore extends Store {
@@ -93,6 +93,8 @@ export async function syncOnce(
   for (;;) {
     const page = await drive.listChanges(token);
     await ingest(page.changes.filter((c) => !c.removed).map((c) => c.file));
+    // 削除通知は op の適用後に処理する（同じページの「添付の削除」op を先に反映して、生きた参照かを正しく判定するため）
+    if (blobs) for (const c of page.changes) if (c.removed && c.fileId) await blobs.forgetRemote(c.fileId);
     token = page.nextPageToken ?? page.newStartPageToken ?? token;
     store.setState('drive_page_token', token); // 処理後に進める（少なくとも1回は適用）
     if (!page.nextPageToken) break;
@@ -104,4 +106,8 @@ export async function syncOnce(
   // 本体のアップロードは最後（「Wi-Fi 接続時のみ」設定に従う）
   const { bodies } = await plan(await blobs.allowBodies());
   for (const h of bodies) await uploadBlob(drive, blobs, h);
+
+  // 後始末は同期の成否に影響させない（次回に持ち越す）
+  await collectGarbage(drive, blobs).catch(() => {});
+  await trimCache(blobs).catch(() => {});
 }

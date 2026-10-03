@@ -13,3 +13,8 @@ export function writeBlob(hash: string, bytes: Uint8Array): void {
   if (!f.exists) f.create();
   f.write(bytes);
 }
+
+export function deleteBlobFile(hash: string): void {
+  const f = blobFile(hash);
+  if (f.exists) f.delete();
+}

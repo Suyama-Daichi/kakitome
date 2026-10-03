@@ -145,6 +145,31 @@ describe('REST クライアント', () => {
     await expect(always401.getStartPageToken()).rejects.toThrow('401');
   });
 
+  test('deleteFile: 既に無ければ成功扱い、それ以外の失敗は例外', async () => {
+    const mk = (status: number) => createDriveClient((async () => new Response(status === 204 ? null : 'x', { status })) as unknown as typeof fetch, async () => 't');
+    await expect(mk(204).deleteFile('f1')).resolves.toBeUndefined();
+    await expect(mk(404).deleteFile('f1')).resolves.toBeUndefined();
+    await expect(mk(500).deleteFile('f1')).rejects.toThrow('500');
+    const seen: { url: string; method?: string }[] = [];
+    const c = createDriveClient((async (u: string, init: RequestInit) => (seen.push({ url: u, method: init.method }), new Response(null, { status: 204 }))) as unknown as typeof fetch, async () => 't');
+    await c.deleteFile('a b');
+    expect(seen[0]).toEqual({ url: 'https://www.googleapis.com/drive/v3/files/a%20b', method: 'DELETE' });
+  });
+
+  test('usage: appDataFolder のファイルサイズを全ページ合計する', async () => {
+    const pages = [{ files: [{ size: '10' }, { size: '20' }], nextPageToken: 'p2' }, { files: [{ size: '5' }, {}] }];
+    let i = 0;
+    const c = createDriveClient((async () => new Response(JSON.stringify(pages[i++]), { status: 200 })) as unknown as typeof fetch, async () => 't');
+    expect(await c.usage()).toBe(35);
+  });
+
+  test('changes は削除通知用に fileId も要求する', async () => {
+    let url = '';
+    const c = createDriveClient((async (u: string) => ((url = u), new Response('{"changes":[]}', { status: 200 }))) as unknown as typeof fetch, async () => 't');
+    await c.listChanges('7');
+    expect(decodeURIComponent(url)).toContain('changes(fileId,removed,file(');
+  });
+
   test('HTTP エラーは例外にする', async () => {
     const bad = createDriveClient((async () => new Response('no', { status: 401 })) as unknown as typeof fetch, async () => 't');
     await expect(bad.getStartPageToken()).rejects.toThrow('401');

@@ -6,6 +6,7 @@ import { addAttachment, deleteAttachment } from '../db/actions';
 import { subscribeDbChanges } from '../db/changes';
 import { listAttachments, type AttachmentView } from '../db/queries';
 import { blobFile } from '../media/blobs';
+import { touchBlob } from '../media/blob-port';
 import { ensureBody, type BodyResult } from '../media/body';
 import { importImage } from '../media/process';
 import { onLocalChange } from '../sync/auto';
@@ -41,7 +42,10 @@ export function AttachmentSection({ noteId }: { noteId: string }) {
   // 本体が未取得なら、表示するときに取得する（Wi-Fi 限定設定に従う）
   const open = async (a: AttachmentView) => {
     setViewing(a);
-    if (a.has_body) return setBodyState('ready');
+    if (a.has_body) {
+      touchBlob(a.hash);
+      return setBodyState('ready');
+    }
     setBodyState('loading');
     const r = await ensureBody(a.hash);
     setBodyState(r);

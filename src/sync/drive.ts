@@ -5,6 +5,7 @@ export interface DriveFile {
   appProperties?: Record<string, string>;
 }
 export interface Change {
+  fileId?: string;
   removed?: boolean;
   file?: DriveFile;
 }
@@ -20,6 +21,10 @@ export interface DriveClient {
   /** 画像などのバイナリ。atomic にするため作成と本体を 1 リクエスト（multipart）で送る */
   createBlob(meta: { name: string; appProperties: Record<string, string> }, bytes: Uint8Array): Promise<DriveFile>;
   downloadBytes(fileId: string): Promise<Uint8Array>;
+  /** appDataFolder のファイルは完全削除になる（ゴミ箱は使えない）。既に無ければ成功扱い */
+  deleteFile(fileId: string): Promise<void>;
+  /** appDataFolder 内のファイルのサイズ合計（バイト） */
+  usage(): Promise<number>;
   getStartPageToken(): Promise<string>;
   /** 初回同期用。appDataFolder の全ファイル */
   listFiles(): Promise<DriveFile[]>;
@@ -89,6 +94,27 @@ export function createDriveClient(
       return new Uint8Array(await (await call(`${API}/files/${encodeURIComponent(fileId)}?alt=media`)).arrayBuffer());
     },
 
+    async deleteFile(fileId) {
+      try {
+        await call(`${API}/files/${encodeURIComponent(fileId)}`, { method: 'DELETE' });
+      } catch (e) {
+        if (!(e instanceof Error && e.message.startsWith('Drive API 404'))) throw e;
+      }
+    },
+
+    async usage() {
+      let total = 0;
+      let pageToken: string | undefined;
+      do {
+        const p: Record<string, string> = { spaces: 'appDataFolder', pageSize: '1000', fields: 'nextPageToken,files(size)' };
+        if (pageToken) p.pageToken = pageToken;
+        const r = await (await call(`${API}/files?${qs(p)}`)).json();
+        for (const f of r.files) total += Number(f.size ?? 0);
+        pageToken = r.nextPageToken;
+      } while (pageToken);
+      return total;
+    },
+
     async getStartPageToken() {
       // getStartPageToken に spaces パラメータは無い。取得したトークンを changes.list(spaces=appDataFolder) に渡す
       return (await (await call(`${API}/changes/startPageToken`)).json()).startPageToken;
@@ -113,7 +139,7 @@ export function createDriveClient(
         spaces: 'appDataFolder',
         pageSize: '1000',
         includeRemoved: 'true',
-        fields: `nextPageToken,newStartPageToken,changes(removed,file(${FILE_FIELDS}))`,
+        fields: `nextPageToken,newStartPageToken,changes(fileId,removed,file(${FILE_FIELDS}))`,
       };
       return (await call(`${API}/changes?${qs(p)}`)).json();
     },

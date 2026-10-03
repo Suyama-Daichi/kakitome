@@ -5,10 +5,11 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import * as BackgroundTask from 'expo-background-task';
 import { lastSyncAt, lastSyncError, unsentOpCount } from '../db/queries';
-import { isWifiOnly, setWifiOnly } from '../media/blob-port';
+import { collectGarbage } from '../sync/blobs';
+import { isWifiOnly, localImageBytes, createBlobPort, setWifiOnly } from '../media/blob-port';
 import { rescheduleAllReminders } from '../notifications/reconcile';
 import { currentEmail, isSignedIn, signIn, signOut } from '../sync/google-auth';
-import { runSync } from '../sync/run';
+import { makeDrive, runSync } from '../sync/run';
 
 export default function Settings() {
   const [email, setEmail] = useState<string | null>(null);
@@ -16,6 +17,7 @@ export default function Settings() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [wifiOnly, setWifiOnlyState] = useState(true);
+  const [usage, setUsage] = useState('');
   const [info, setInfo] = useState({ unsent: 0, last: null as string | null, error: null as string | null });
 
   const reload = useCallback(() => {
@@ -76,6 +78,29 @@ export default function Settings() {
           <Switch value={wifiOnly} onValueChange={(v) => { setWifiOnly(v); setWifiOnlyState(v); }} />
         </View>
         <Text style={styles.note}>サムネイルとメモの内容は、モバイル回線でも同期されます。オフにすると、画像の本体もモバイル回線で送受信します。</Text>
+        <Pressable
+          style={[styles.button, styles.secondary]}
+          disabled={busy}
+          onPress={() =>
+            run(async () => {
+              const drive = await makeDrive().usage();
+              const size = (n: number) => (n < 1024 * 1024 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`);
+              setUsage(`Drive の使用量（kakitome の専用領域）: ${size(drive)}／この端末の画像: ${size(localImageBytes())}`);
+            }, '')
+          }
+        >
+          <Text style={[styles.buttonText, styles.secondaryText]}>使用容量を確認する</Text>
+        </Pressable>
+        {usage ? <Text style={styles.status}>{usage}</Text> : null}
+        {__DEV__ && signed ? (
+          <Pressable
+            style={[styles.button, styles.secondary]}
+            disabled={busy}
+            onPress={() => run(async () => { await collectGarbage(makeDrive(), createBlobPort(), { graceMs: 0, force: true }); }, '整理しました')}
+          >
+            <Text style={[styles.buttonText, styles.secondaryText]}>（開発用）猶予なしで不要な画像を整理</Text>
+          </Pressable>
+        ) : null}
       </View>
       {Platform.OS === 'android' && Number(Platform.Version) >= 31 ? (
         <View style={styles.section}>

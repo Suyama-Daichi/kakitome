@@ -1,59 +1,10 @@
-import { createHash } from 'crypto';
 import fc from 'fast-check';
-import { createClock } from '../core/hlc';
-import { applyLocalOp, type Ctx } from '../core/merge';
-import type { BlobState } from '../core/uploads';
-import { MemoryStore } from '../core/store';
-import { downloadBlob, type BlobPort } from './blobs';
+import { applyLocalOp } from '../core/merge';
+import { downloadBlob } from './blobs';
+import { attach, device } from './test-support';
 import { FakeDrive } from './fake-drive';
 import { syncOnce } from './sync';
 
-const sha = (b: Uint8Array) => createHash('sha256').update(b).digest('hex');
-
-class MemoryBlobPort implements BlobPort {
-  files = new Map<string, Uint8Array>();
-  uploaded = new Set<string>();
-  remote = new Map<string, string>();
-  wifi = true;
-  wifiOnly = true;
-  constructor(private store: MemoryStore) {}
-  attachments() {
-    return Object.values(this.store.snapshot().attachment ?? {})
-      .filter((a) => a.deleted !== 1)
-      .map((a) => ({ hash: a.hash as string, thumbHash: a.thumb_hash as string }));
-  }
-  blobs() {
-    const m = new Map<string, BlobState>();
-    for (const h of new Set([...this.files.keys(), ...this.uploaded])) m.set(h, { local: this.files.has(h), uploaded: this.uploaded.has(h) });
-    return m;
-  }
-  markUploaded(h: string, id: string) { this.uploaded.add(h); this.remote.set(h, id); }
-  setRemote(h: string, id: string) { this.remote.set(h, id); }
-  remoteId = (h: string) => this.remote.get(h) ?? null;
-  read = async (h: string) => this.files.get(h)!;
-  async save(h: string, b: Uint8Array) { this.files.set(h, b); this.uploaded.add(h); }
-  missingThumbs() { return this.attachments().map((a) => a.thumbHash).filter((h) => !this.files.has(h)); }
-  sha256 = async (b: Uint8Array) => sha(b);
-  allowBodies = async () => !this.wifiOnly || this.wifi;
-}
-
-let seq = 0;
-function device(name: string, time: { t: number }) {
-  const store = new MemoryStore();
-  const ctx: Ctx & { store: MemoryStore } = { store, clock: createClock(name, () => time.t), newId: () => `op-${String(++seq).padStart(6, '0')}` };
-  return { ctx, port: new MemoryBlobPort(store) };
-}
-const bytes = (n: number) => Uint8Array.from({ length: 64 }, (_, i) => (n * 31 + i) % 256);
-
-/** 端末に画像（本体＋サムネイル）を取り込んだことにする */
-function attach(d: ReturnType<typeof device>, noteId: string, n: number) {
-  const body = bytes(n);
-  const thumb = bytes(n + 1000);
-  d.port.files.set(sha(body), body);
-  d.port.files.set(sha(thumb), thumb);
-  applyLocalOp(d.ctx, 'attachment', `att-${n}`, { note_id: noteId, hash: sha(body), thumb_hash: sha(thumb), mime: 'image/jpeg', width: 1, height: 1, size: 64, sort_key: String(n), deleted: 0 });
-  return { body, thumb, bodyHash: sha(body), thumbHash: sha(thumb) };
-}
 const sync = (d: ReturnType<typeof device>, drive: FakeDrive) => syncOnce(d.ctx, drive, undefined, d.port);
 const names = (drive: FakeDrive) => drive.log.map((id) => drive.files.get(id)!.file.name);
 

@@ -1,3 +1,4 @@
+import { planBlobGc, planCacheEviction, type CacheBody, type GcAttachment } from '../core/blobgc';
 import type { BlobState } from '../core/uploads';
 import type { DriveClient } from './drive';
 
@@ -19,6 +20,47 @@ export interface BlobPort {
   sha256(bytes: Uint8Array): Promise<string>;
   /** 「Wi-Fi 接続時のみ」設定と回線から、本体を今送受信してよいか */
   allowBodies(): Promise<boolean>;
+
+  // --- 後始末（設計 §7.4）
+  now(): number;
+  /** 削除済みも含む全添付（blob の参照関係と削除時刻） */
+  attachmentsForGc(): GcAttachment[];
+  /** 本体の一覧（サイズ・最終利用・端末にあるか・Drive にあるか） */
+  cacheBodies(): CacheBody[];
+  /** 端末の実体だけ消す（記録と Drive 上の ID は残す。後で再取得できる） */
+  evictLocal(hash: string): Promise<void>;
+  /** 不要になった blob を端末から消す。未アップロードの実体は消さない */
+  dropBlob(hash: string): Promise<void>;
+  /** Drive 上のファイルが消えた。生きた添付が参照していれば再アップロードの対象に戻し、参照が無ければ端末からも消す */
+  forgetRemote(fileId: string): Promise<void>;
+  getState(key: string): string | undefined;
+  setState(key: string, value: string): void;
+}
+
+const DAY = 86_400_000;
+export const BLOB_GRACE_MS = 30 * DAY; // 墓標から 30 日（設計 §7.4 の例）
+export const CACHE_LIMIT_BYTES = 500 * 1024 * 1024;
+
+/**
+ * Drive 上の不要な blob を削除する（1 日 1 回まで）。
+ * 削除した端末は実体も消し、他端末は changes の削除通知で forgetRemote する。
+ */
+export async function collectGarbage(drive: DriveClient, port: BlobPort, opts: { graceMs?: number; force?: boolean } = {}): Promise<void> {
+  const last = Number(port.getState('last_blob_gc') ?? 0);
+  if (!opts.force && port.now() - last < DAY) return;
+  const dead = planBlobGc({ attachments: port.attachmentsForGc(), now: port.now(), graceMs: opts.graceMs ?? BLOB_GRACE_MS });
+  for (const h of dead) {
+    const id = port.remoteId(h);
+    if (!id) continue; // Drive 上の場所が分からないものは触らない
+    await drive.deleteFile(id);
+    await port.dropBlob(h);
+  }
+  port.setState('last_blob_gc', String(port.now()));
+}
+
+/** 端末内の画像本体が上限を超えていたら、古いものから消す（Drive から再取得できる分だけ） */
+export async function trimCache(port: BlobPort, limitBytes = CACHE_LIMIT_BYTES): Promise<void> {
+  for (const h of planCacheEviction({ bodies: port.cacheBodies(), limitBytes })) await port.evictLocal(h);
 }
 
 export const blobName = (hash: string) => `blob_${hash}`;

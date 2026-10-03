@@ -1,6 +1,6 @@
 import { downloadBlob } from '../sync/blobs';
 import { makeDrive } from '../sync/run';
-import { bodiesAllowed, createBlobPort } from './blob-port';
+import { bodiesAllowed, createBlobPort, touchBlob } from './blob-port';
 
 export type BodyResult = 'ready' | 'wifi' | 'unavailable';
 
@@ -10,10 +10,15 @@ export type BodyResult = 'ready' | 'wifi' | 'unavailable';
  */
 export async function ensureBody(hash: string): Promise<BodyResult> {
   const port = createBlobPort();
-  if (port.blobs().get(hash)?.local) return 'ready';
+  if (port.blobs().get(hash)?.local) {
+    touchBlob(hash);
+    return 'ready';
+  }
   if (!(await bodiesAllowed())) return 'wifi';
   try {
-    return (await downloadBlob(makeDrive(), port, hash)) ? 'ready' : 'unavailable'; // Drive 上に未着ならこの後の同期で拾う
+    if (!(await downloadBlob(makeDrive(), port, hash))) return 'unavailable'; // Drive 上に未着ならこの後の同期で拾う
+    touchBlob(hash);
+    return 'ready';
   } catch {
     return 'unavailable';
   }
