@@ -346,6 +346,15 @@ appDataFolder/
 | HEIC | 必ず JPEG に変換（Android 互換のため） |
 | EXIF | 保存しない（位置情報を残さない）。向きは先に画像へ反映してから削除する |
 
+実装上の取り決め（段階A: 端末内の取り込み。`src/core/jpeg.ts`、`src/media/`）:
+
+- `expo-image-picker`（Android のシステムフォトピッカー。権限不要）で選び、`expo-image-manipulator` で長辺 2048px / 320px の JPEG にする。縮小は長辺が上限を超えるときだけ
+- 向きは画素に反映される（Orientation=6 の 4000×3000 で検証。保存後は 1536×2048 の縦向き）
+- メタデータ（EXIF・XMP・IPTC・コメント）は、変換結果に対して必ず `stripJpegMetadata` を通して除去する（変換ライブラリが除去するかに依存しない安全網）。JFIF・ICC・Adobe セグメントは描画に要るので残す
+- 保存名は本体バイト列の SHA-256（`document/blobs/<hash>`）。DB には相対名（`blobs/<hash>`）のみを持つ（iOS ではアプリ更新で document の絶対パスが変わりうるため）
+- `blobs` テーブルに `remote_id`（Drive のファイル ID）列を足す（§3.3 との差。重複アップロードの回避用）
+- 添付の削除は墓標のみ。blob の実体は消さない
+
 ### 7.3 アップロード順序
 
 ```

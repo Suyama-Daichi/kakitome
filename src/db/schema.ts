@@ -61,6 +61,13 @@ CREATE TABLE IF NOT EXISTS ops (
 );
 CREATE INDEX IF NOT EXISTS ops_hlc ON ops(hlc);
 CREATE TABLE IF NOT EXISTS sync_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS blobs (
+  hash TEXT PRIMARY KEY,
+  local_path TEXT,          -- 端末に実体があれば 'blobs/<hash>'、未取得なら NULL（設計 §3.3）
+  uploaded INTEGER NOT NULL DEFAULT 0,
+  remote_id TEXT,           -- Drive のファイル ID（設計 §3.3 との差。重複アップロードの回避用）
+  last_used TEXT
+);
 -- fire_at にはトリガーと通知内容の署名を保存する（設計 §3.3 との差。繰り返し・内容変更の検知用）
 CREATE TABLE IF NOT EXISTS scheduled_notifications (
   reminder_id TEXT PRIMARY KEY,

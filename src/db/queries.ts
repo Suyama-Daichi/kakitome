@@ -96,3 +96,25 @@ export const scheduledNotifications = () =>
   getDb()
     .getAllSync<{ reminder_id: string; notification_id: string; fire_at: string }>('SELECT reminder_id, notification_id, fire_at FROM scheduled_notifications')
     .map((r) => ({ reminderId: r.reminder_id, notificationId: r.notification_id, signature: r.fire_at }));
+
+export interface AttachmentView {
+  id: string;
+  hash: string;
+  thumb_hash: string;
+  width: number;
+  height: number;
+  has_thumb: number;
+  has_body: number;
+}
+
+export const listAttachments = (noteId: string) =>
+  getDb().getAllSync<AttachmentView>(
+    `SELECT a.id, a.hash, a.thumb_hash, a.width, a.height,
+       EXISTS (SELECT 1 FROM blobs b WHERE b.hash = a.thumb_hash AND b.local_path IS NOT NULL) AS has_thumb,
+       EXISTS (SELECT 1 FROM blobs b WHERE b.hash = a.hash AND b.local_path IS NOT NULL) AS has_body
+     FROM attachments a WHERE a.note_id = ? AND a.deleted = 0 ORDER BY a.sort_key, a.id`,
+    noteId,
+  );
+
+export const maxAttachmentKey = (noteId: string) =>
+  getDb().getFirstSync<{ k: string | null }>("SELECT MAX(sort_key) AS k FROM attachments WHERE note_id = ? AND sort_key != ''", noteId)?.k ?? null;

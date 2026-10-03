@@ -1,8 +1,8 @@
 import { keyBetween } from '../core/fractional';
 import { applyLocalOp } from '../core/merge';
 import type { Json } from '../core/ops';
-import { openCore } from './index';
-import { firstNoteWithItems, getNote, itemChecked, maxItemKey, minNoteKey } from './queries';
+import { getDb, openCore } from './index';
+import { firstNoteWithItems, getNote, itemChecked, maxAttachmentKey, maxItemKey, minNoteKey } from './queries';
 
 /** アプリ・ウィジェット共通。変更は必ず applyLocalOp 経由 */
 export function toggleItem(itemId: string) {
@@ -84,4 +84,39 @@ export function setReminderEnabled(id: string, enabled: boolean) {
 export function deleteReminder(id: string) {
   const { ctx, tx } = openCore();
   tx(() => applyLocalOp(ctx, 'reminder', id, { deleted: 1 }));
+}
+
+export interface ProcessedImage {
+  hash: string;
+  thumbHash: string;
+  width: number;
+  height: number;
+  size: number;
+}
+
+/** 画像は blobs に登録（端末に実体あり・未アップロード）し、メタデータだけを op で記録する（設計 §7.1） */
+export function addAttachment(noteId: string, img: ProcessedImage): string {
+  const { ctx, tx } = openCore();
+  const now = nowIso();
+  return tx(() => {
+    for (const hash of [img.hash, img.thumbHash]) {
+      getDb().runSync(
+        "INSERT INTO blobs (hash, local_path, uploaded, last_used) VALUES (?, ?, 0, ?) ON CONFLICT(hash) DO UPDATE SET local_path = excluded.local_path, last_used = excluded.last_used",
+        hash, `blobs/${hash}`, now,
+      );
+    }
+    const id = ctx.newId();
+    applyLocalOp(ctx, 'attachment', id, {
+      note_id: noteId, hash: img.hash, thumb_hash: img.thumbHash, mime: 'image/jpeg',
+      width: img.width, height: img.height, size: img.size,
+      sort_key: keyBetween(maxAttachmentKey(noteId), null), deleted: 0, created_at: now,
+    });
+    return id;
+  });
+}
+
+/** 削除は墓標のみ。blob 本体は別メモから参照されうるので消さない（設計 §7.4） */
+export function deleteAttachment(id: string) {
+  const { ctx, tx } = openCore();
+  tx(() => applyLocalOp(ctx, 'attachment', id, { deleted: 1 }));
 }
