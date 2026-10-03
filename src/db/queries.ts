@@ -23,6 +23,7 @@ export interface NoteRow {
   body: string;
   pinned: number;
   conflict_of: string | null;
+  sort_key: string;
   conflict_count: number;
   open_count: number;
   total_count: number;
@@ -31,7 +32,7 @@ export interface NoteRow {
 /** 一覧: ピン留め優先、次に sort_key。競合コピーも表示する（バッジ用に conflict_of を返す） */
 export function listNotes(): NoteRow[] {
   return getDb().getAllSync<NoteRow>(
-    `SELECT n.id, n.title, n.body, n.pinned, n.conflict_of,
+    `SELECT n.id, n.title, n.body, n.pinned, n.conflict_of, n.sort_key,
        (SELECT COUNT(*) FROM notes c WHERE c.conflict_of = n.id AND c.deleted = 0) AS conflict_count,
        (SELECT COUNT(*) FROM checklist_items i WHERE i.note_id = n.id AND i.deleted = 0 AND i.checked = 0) AS open_count,
        (SELECT COUNT(*) FROM checklist_items i WHERE i.note_id = n.id AND i.deleted = 0) AS total_count
