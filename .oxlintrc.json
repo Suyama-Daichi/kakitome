@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": { "correctness": "error" },
+  "ignorePatterns": ["android", "ios", ".expo", "dist"],
+  "overrides": [
+    {
+      // src/core は純粋 TS（ウィジェットのヘッドレス JS から呼ぶため）
+      "files": ["src/core/**"],
+      "rules": {
+        "no-restricted-imports": ["error", { "patterns": [{ "regex": "^(react|expo|@expo|@react-native)" }, { "regex": "^\\.\\./(db|widget|app)" }] }]
+      }
+    }
+  ]
+}
