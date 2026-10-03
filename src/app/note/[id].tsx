@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { addItem, deleteItem, toggleItem, updateItemText, updateNote } from '../../db/actions';
 import { getNote, listItems, type Item } from '../../db/queries';
+import { ReminderSection } from '../../components/ReminderSection';
 import { subscribeDbChanges } from '../../db/changes';
 import { onLocalChange } from '../../sync/auto';
 
@@ -87,6 +88,7 @@ export default function NoteEditor() {
       <Pressable style={styles.add} onPress={() => { addItem(id); reload(); onLocalChange(); }}>
         <Text style={styles.addText}>＋ 項目を追加</Text>
       </Pressable>
+      <ReminderSection noteId={id} />
     </ScrollView>
   );
 }

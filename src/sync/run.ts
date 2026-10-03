@@ -1,5 +1,6 @@
 import { notifyDbChanged } from '../db/changes';
 import { openCore } from '../db';
+import { reconcileReminders } from '../notifications/reconcile';
 import { refreshWidget } from '../widget/refresh';
 import { createDriveClient } from './drive';
 import { discardAccessToken, getAccessToken } from './google-auth';
@@ -13,4 +14,5 @@ export async function runSync(): Promise<void> {
   ctx.store.setState('last_error', '');
   refreshWidget();
   notifyDbChanged();
+  await reconcileReminders().catch(() => {}); // 他端末のリマインドを反映
 }

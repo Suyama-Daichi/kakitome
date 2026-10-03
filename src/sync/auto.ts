@@ -1,5 +1,6 @@
 import { AppState } from 'react-native';
 import { getDb } from '../db';
+import { reconcileSoon } from '../notifications/reconcile';
 import { refreshWidget } from '../widget/refresh';
 import { isSignedIn } from './google-auth';
 import { runSync } from './run';
@@ -14,9 +15,10 @@ export const scheduler = createSyncScheduler({
     getDb().runSync("INSERT OR REPLACE INTO sync_state (key, value) VALUES ('last_error', ?)", e instanceof Error ? e.message : String(e)),
 });
 
-/** ローカルの変更後に呼ぶ: ウィジェットを更新し、入力が止まったら同期する */
+/** ローカルの変更後に呼ぶ: ウィジェットを更新し、リマインドを調停し、入力が止まったら同期する */
 export function onLocalChange() {
   refreshWidget();
+  reconcileSoon(); // 通知の本文（タイトル・未完了項目）やリマインドの変更を反映
   scheduler.schedule();
 }
 

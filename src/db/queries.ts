@@ -56,3 +56,43 @@ export const maxItemKey = (noteId: string) =>
 export const unsentOpCount = () => getDb().getFirstSync<{ n: number }>('SELECT COUNT(*) AS n FROM ops WHERE uploaded = 0')?.n ?? 0;
 export const lastSyncAt = () => getDb().getFirstSync<{ value: string }>("SELECT value FROM sync_state WHERE key = 'last_sync_at'")?.value ?? null;
 export const lastSyncError = () => getDb().getFirstSync<{ value: string }>("SELECT value FROM sync_state WHERE key = 'last_error'")?.value ?? null;
+
+export interface ReminderView {
+  id: string;
+  fire_at: string;
+  timezone: string;
+  rrule: string | null;
+  enabled: number;
+}
+
+export const listReminders = (noteId: string) =>
+  getDb().getAllSync<ReminderView>(
+    'SELECT id, fire_at, timezone, rrule, enabled FROM reminders WHERE note_id = ? AND deleted = 0 ORDER BY fire_at',
+    noteId,
+  );
+
+/** 調停の入力。通知の本文は「最初の未完了項目、なければ本文の1行目」 */
+export function reminderInputs() {
+  const db = getDb();
+  const reminders = db
+    .getAllSync<{ id: string; note_id: string; fire_at: string; timezone: string; rrule: string | null; enabled: number }>(
+      'SELECT id, note_id, fire_at, timezone, rrule, enabled FROM reminders WHERE deleted = 0',
+    )
+    .map((r) => ({ id: r.id, noteId: r.note_id, fireAt: r.fire_at, timezone: r.timezone, rrule: r.rrule, enabled: !!r.enabled }));
+  const notes = new Map<string, { title: string; body: string }>();
+  for (const noteId of new Set(reminders.map((r) => r.noteId))) {
+    const n = db.getFirstSync<{ title: string; body: string }>('SELECT title, body FROM notes WHERE id = ? AND deleted = 0', noteId);
+    if (!n) continue;
+    const item = db.getFirstSync<{ text: string }>(
+      "SELECT text FROM checklist_items WHERE note_id = ? AND deleted = 0 AND checked = 0 AND text != '' ORDER BY sort_key LIMIT 1",
+      noteId,
+    );
+    notes.set(noteId, { title: n.title || '無題のメモ', body: item?.text ?? n.body.split('\n')[0] });
+  }
+  return { reminders, notes };
+}
+
+export const scheduledNotifications = () =>
+  getDb()
+    .getAllSync<{ reminder_id: string; notification_id: string; fire_at: string }>('SELECT reminder_id, notification_id, fire_at FROM scheduled_notifications')
+    .map((r) => ({ reminderId: r.reminder_id, notificationId: r.notification_id, signature: r.fire_at }));

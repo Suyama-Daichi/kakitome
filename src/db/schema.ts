@@ -61,6 +61,12 @@ CREATE TABLE IF NOT EXISTS ops (
 );
 CREATE INDEX IF NOT EXISTS ops_hlc ON ops(hlc);
 CREATE TABLE IF NOT EXISTS sync_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+-- fire_at にはトリガーと通知内容の署名を保存する（設計 §3.3 との差。繰り返し・内容変更の検知用）
+CREATE TABLE IF NOT EXISTS scheduled_notifications (
+  reminder_id TEXT PRIMARY KEY,
+  notification_id TEXT NOT NULL,
+  fire_at TEXT NOT NULL
+);
 `;
 
 // リモート op の field 名は SQL に埋め込むため、必ずこの許可リストで検証する

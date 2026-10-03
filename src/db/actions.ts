@@ -64,3 +64,24 @@ export function deleteItem(id: string) {
   const { ctx, tx } = openCore();
   tx(() => applyLocalOp(ctx, 'checklist_item', id, { deleted: 1 }));
 }
+
+const deviceTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
+export function addReminder(noteId: string, fireAt: Date, rrule: string | null): string {
+  const { ctx, tx } = openCore();
+  return tx(() => {
+    const id = ctx.newId();
+    applyLocalOp(ctx, 'reminder', id, { note_id: noteId, fire_at: fireAt.toISOString(), timezone: deviceTimeZone(), rrule, enabled: 1, deleted: 0 });
+    return id;
+  });
+}
+
+export function setReminderEnabled(id: string, enabled: boolean) {
+  const { ctx, tx } = openCore();
+  tx(() => applyLocalOp(ctx, 'reminder', id, { enabled: enabled ? 1 : 0 }));
+}
+
+export function deleteReminder(id: string) {
+  const { ctx, tx } = openCore();
+  tx(() => applyLocalOp(ctx, 'reminder', id, { deleted: 1 }));
+}

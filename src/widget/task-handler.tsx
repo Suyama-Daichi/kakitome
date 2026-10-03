@@ -1,6 +1,7 @@
 import type { WidgetTaskHandlerProps } from 'react-native-android-widget';
 import { toggleItem } from '../db/actions';
 import { firstNoteWithItems } from '../db/queries';
+import { reconcileReminders } from '../notifications/reconcile';
 import { scheduler } from '../sync/auto';
 import { ChecklistWidget } from './ChecklistWidget';
 
@@ -14,5 +15,8 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
     props.renderWidget(<ChecklistWidget note={firstNoteWithItems()} />);
   }
   // 描画を先に済ませてから同期する（失敗しても次回のトリガーで再試行）
-  if (props.widgetAction === 'WIDGET_CLICK') await scheduler.trigger();
+  if (props.widgetAction === 'WIDGET_CLICK') {
+    await reconcileReminders().catch(() => {}); // 通知の本文（最初の未完了項目）を更新
+    await scheduler.trigger();
+  }
 }
