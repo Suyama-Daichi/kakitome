@@ -8,7 +8,7 @@
 - Expo のプロジェクト: `@donchan/kakitome`（`app.json` の `owner` と `extra.eas.projectId`）
 - 署名は EAS に任せる。初回の `eas build` で、EAS がアップロード鍵を作って管理する（手元に鍵ファイルは要らない）。**最初の 1 回は対話が必要**なので、手元のターミナルで実行する
 - 構築: `eas build -p android --profile production`（AAB が出る）。バージョン番号（`versionCode`）は EAS が自動で増やす（`eas.json` の `appVersionSource: remote` と `autoIncrement`）。表示用のバージョンは `app.json` の `expo.version`
-- アップロード鍵の SHA-1: `eas credentials -p android` で確認する（Google Cloud の OAuth に使う。下の 2 章）
+- アップロード鍵（EAS が作成・管理）の SHA-1: `C4:E4:29:7B:3D:04:B4:C1:8C:0A:D8:A1:DE:51:0B:F8:D6:DB:C0:60`（初回ビルド `1be5f9b9` の AAB の署名から取得。`eas credentials -p android` でも見られる）。Google Cloud の OAuth に使う（下の 2 章）。Play に登録後、Play 経由で配布されるアプリの署名鍵は別の SHA-1 になる
 - 権限は必要最小限に絞ってある（`app.json` の `blockedPermissions`）。リリースの権限: INTERNET / SCHEDULE_EXACT_ALARM / VIBRATE / ACCESS_NETWORK_STATE / ACCESS_WIFI_STATE / RECEIVE_BOOT_COMPLETED / POST_NOTIFICATIONS / WAKE_LOCK
 - ローカルのリリースビルド（動作確認用）は、署名が debug になる。Play への提出には使わない
 
@@ -21,7 +21,7 @@
 ## 2. Google Cloud（OAuth）
 
 1. 「Android」の OAuth クライアントに、SHA-1 を**追加**する（既存のデバッグ用 SHA-1 は消さない）
-   - アップロード鍵: `eas credentials -p android` で表示される SHA-1（EAS が作った鍵。EAS の production ビルドを手元の端末に直接入れて試すときに使う）
+   - アップロード鍵: 上の SHA-1（`C4:E4:29:…:C0:60`）。EAS の production ビルドを、手元の端末に直接入れて試すときに使う
    - **Play アプリ署名の鍵**: Play Console →「アプリの完全性」→「アプリ署名」に表示される SHA-1（Play 経由でインストールされたアプリが使う。初回アップロード後に表示される）
 2. 「Google Auth Platform」→「対象」で、公開ステータスを「テスト」から「本番」へ。要求するスコープは `drive.appdata`（非センシティブ）と基本情報のみ
 3. 「ブランディング」: アプリ名、サポートメール、アプリのホームページ（`https://suyama-daichi.github.io/kakitome/`）、プライバシーポリシー（`.../privacy`）
