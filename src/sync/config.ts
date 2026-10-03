@@ -5,5 +5,5 @@ export const WEB_CLIENT_ID = '196889256232-irgrho6nl5s7rj9fber1j0mrtavkub15.apps
 export const DRIVE_APPDATA_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 
 // iOS 用 OAuth クライアント ID（Google Cloud で種類「iOS」・バンドル ID app.kakitome のもの）。
-// 未作成の間は null。iOS では null のあいだ Google サインインを利用不可として扱う
-export const IOS_CLIENT_ID: string | null = null;
+// 公開情報（シークレットではない）。null のあいだ、iOS では Google サインインを利用不可として扱う
+export const IOS_CLIENT_ID: string | null = '196889256232-0r0vqbt26up91kaj7ktlne3of3n4i8nc.apps.googleusercontent.com';

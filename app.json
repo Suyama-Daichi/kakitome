@@ -64,7 +64,13 @@
           "photosPermission": "メモに添付する画像を選ぶために、写真ライブラリへアクセスします。"
         }
       ],
-      "./plugins/withIosScene"
+      "./plugins/withIosScene",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.196889256232-0r0vqbt26up91kaj7ktlne3of3n4i8nc"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
