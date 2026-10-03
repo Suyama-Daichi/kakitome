@@ -45,6 +45,9 @@ export interface NoteRow {
 }
 
 /** 一覧: ピン留め優先、次に sort_key。競合コピーも表示する（バッジ用に conflict_of を返す） */
+export const doneItems = (noteId: string) =>
+  getDb().getAllSync<Item>('SELECT id, text, checked FROM checklist_items WHERE note_id = ? AND deleted = 0 AND checked = 1 ORDER BY sort_key, id', noteId);
+
 export function listNotes(): NoteRow[] {
   const db = getDb();
   const rows = db.getAllSync<Omit<NoteRow, 'preview'>>(

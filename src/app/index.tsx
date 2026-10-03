@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { createNote, moveNote, toggleItem, updateNote } from '../db/actions';
 import { subscribeDbChanges } from '../db/changes';
-import { listNotes, type NoteRow } from '../db/queries';
+import { doneItems, listNotes, type NoteRow } from '../db/queries';
 import { onLocalChange } from '../sync/auto';
 import { radius, size, space, type, useThemed, type Palette } from '../ui/theme';
 
@@ -122,6 +122,14 @@ export default function NoteList() {
     ]);
 
   const open = (id: string) => router.push({ pathname: '/note/[id]', params: { id } });
+  // 完了項目を展開しているカード
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpanded = (id: string) =>
+    setExpanded((cur) => {
+      const next = new Set(cur);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
   const check = (itemId: string) => { toggleItem(itemId); onLocalChange(); reload(); };
 
   const openCount = notes.reduce((a, n) => a + n.open_count, 0);
@@ -174,13 +182,23 @@ export default function NoteList() {
                     </Pressable>
                   ))}
                   {n.total_count && !n.open_count ? (
-                    <View style={styles.allDone}>
+                    <Pressable style={styles.allDone} onPress={() => toggleExpanded(n.id)} accessibilityLabel="完了した項目を表示">
                       <MaterialIcons name="task-alt" size={16} color={p.accentText} />
                       <Text style={styles.allDoneText}>すべて完了</Text>
-                    </View>
+                      <MaterialIcons name={expanded.has(n.id) ? 'expand-less' : 'expand-more'} size={18} color={p.inkFaint} />
+                    </Pressable>
                   ) : more > 0 || (n.preview.length && done) ? (
-                    <Text style={styles.more}>{more > 0 ? `ほか ${more} 件` : ''}{more > 0 && done ? ' · ' : ''}{done ? `完了 ${done}` : ''}</Text>
+                    <Pressable style={styles.moreRow} onPress={() => toggleExpanded(n.id)} accessibilityLabel="完了した項目を表示">
+                      <Text style={styles.more}>{more > 0 ? `ほか ${more} 件` : ''}{more > 0 && done ? ' · ' : ''}{done ? `完了 ${done}` : ''}</Text>
+                      {done ? <MaterialIcons name={expanded.has(n.id) ? 'expand-less' : 'expand-more'} size={16} color={p.inkFaint} /> : null}
+                    </Pressable>
                   ) : null}
+                  {expanded.has(n.id) ? doneItems(n.id).map((it) => (
+                    <Pressable key={it.id} style={styles.itemRow} onPress={() => check(it.id)} accessibilityLabel="未完了に戻す">
+                      <View style={[styles.box, styles.boxOn]}><MaterialIcons name="check" size={13} color="#fff" /></View>
+                      <Text style={[styles.itemText, styles.itemDone]} numberOfLines={1}>{it.text}</Text>
+                    </Pressable>
+                  )) : null}
                   {n.next_reminder || n.conflict_count || n.conflict_of || n.image_count ? (
                     <View style={styles.chips}>
                       {n.next_reminder ? <Chip icon="alarm" bg={p.reminderBg} fg={p.reminderFg} text={fmtWhen(n.next_reminder)} mono /> : null}
@@ -239,8 +257,11 @@ const makeStyles = (p: Palette) =>
     itemRow: { flexDirection: 'row', alignItems: 'center', gap: 10, height: size.rowList },
     box: { width: size.checkboxList, height: size.checkboxList, borderRadius: radius.checkboxSmall, borderWidth: 1.5, borderColor: p.checkboxBorder },
     itemText: { ...type.item, color: p.ink, flex: 1 },
-    more: { ...type.caption, color: p.inkFaint, marginTop: 2 },
-    allDone: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+    moreRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2, alignSelf: 'flex-start' },
+    more: { ...type.caption, color: p.inkFaint },
+    boxOn: { backgroundColor: p.accent, borderColor: p.accent, alignItems: 'center', justifyContent: 'center' },
+    itemDone: { color: p.inkDone, textDecorationLine: 'line-through' },
+    allDone: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, alignSelf: 'flex-start' },
     allDoneText: { ...type.item, color: p.accentText },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
     chip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.chip, paddingHorizontal: 8, paddingVertical: 3 },
