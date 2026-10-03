@@ -46,6 +46,12 @@ export class MemoryStore implements Store {
       if (o) o.uploaded = true;
     }
   }
+  /** device が作った op（導出された競合コピーの op は device が conflict-… なので含まれない） */
+  ownOps = (device: string) => [...this.ops.values()].map((o) => o.op).filter((op) => op.hlc.split(':').slice(2).join(':') === device);
+  /** 導出された競合コピーの op 以外を、すべて未送信に戻す */
+  markAllUnsent() {
+    for (const o of this.ops.values()) if (!o.op.hlc.split(':').slice(2).join(':').startsWith('conflict-')) o.uploaded = false;
+  }
   private state = new Map<string, string>();
   getState = (key: string) => this.state.get(key);
   setState(key: string, value: string) {

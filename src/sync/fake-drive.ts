@@ -8,10 +8,18 @@ export class FakeDrive implements DriveClient {
   log: string[] = [];
   /** 通信エラーを起こす残り回数（3 呼び出しに 1 回消費）。尽きれば以後は成功する */
   failBudget = 0;
+  /** 初回の全件取得の並び順（受信順に依存しないことの検証用） */
+  listOrder: 'asc' | 'desc' = 'asc';
   downloads: string[] = [];
   listAllCalls = 0;
   private calls = 0;
   private seq = 0;
+
+  private content(id: string) {
+    const f = this.files.get(id);
+    if (!f) throw new Error('Drive API 404: File not found');
+    return f.content;
+  }
 
   private maybeFail() {
     if (this.failBudget > 0 && ++this.calls % 3 === 0) {
@@ -39,7 +47,7 @@ export class FakeDrive implements DriveClient {
   async downloadBytes(id: string) {
     this.maybeFail();
     this.downloads.push(id);
-    return this.files.get(id)!.content as Uint8Array;
+    return this.content(id) as Uint8Array;
   }
   async deleteFile(id: string) {
     this.maybeFail();
@@ -56,7 +64,8 @@ export class FakeDrive implements DriveClient {
   async listFiles() {
     this.maybeFail();
     this.listAllCalls++;
-    return [...this.files.values()].map((f) => f.file);
+    const all = [...this.files.values()].map((f) => f.file);
+    return this.listOrder === 'desc' ? all.reverse() : all;
   }
   async listChanges(token: string): Promise<ChangePage> {
     this.maybeFail();
@@ -69,6 +78,6 @@ export class FakeDrive implements DriveClient {
   async download(id: string) {
     this.maybeFail();
     this.downloads.push(id);
-    return this.files.get(id)!.content as string;
+    return this.content(id) as string;
   }
 }

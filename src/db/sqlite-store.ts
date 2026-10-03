@@ -29,6 +29,14 @@ export class SqliteStore implements Store {
       .map((r) => JSON.parse(r.payload) as Op);
   }
 
+  ownOps(device: string) {
+    return this.db.getAllSync<{ payload: string }>('SELECT payload FROM ops WHERE device_id = ?', device).map((r) => JSON.parse(r.payload) as Op);
+  }
+
+  markAllUnsent() {
+    this.db.runSync("UPDATE ops SET uploaded = 0 WHERE device_id NOT LIKE 'conflict-%'");
+  }
+
   markUploaded(ids: string[]) {
     for (const id of ids) this.db.runSync('UPDATE ops SET uploaded = 1 WHERE id = ?', id);
   }

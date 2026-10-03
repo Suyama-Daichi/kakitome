@@ -50,7 +50,9 @@ function applyOp(store: Store, op: Op): void {
 
     // §5.2: 互いに相手を見ずに書かれた title/body のみ競合として扱う
     if (cur && op.entity === 'note' && (field === 'title' || field === 'body')) {
-      if (base !== undefined && base !== cur.hlc && cur.base !== op.hlc) {
+      // 同じ端末の op 同士は必ず順序づけられている（端末は自分の過去の編集を見ている）ので、同時編集ではない。
+      // 圧縮（スナップショット）で途中の op が無くなっても、連続編集が競合と誤判定されない
+      if (base !== undefined && base !== cur.hlc && cur.base !== op.hlc && parseHlc(cur.hlc).device !== parseHlc(op.hlc).device) {
         const loser = wins
           ? { value: cur.value, hlc: cur.hlc, base: cur.base, opId: store.getOpByHlc(cur.hlc)?.id }
           : { value, hlc: op.hlc, base, opId: op.id };

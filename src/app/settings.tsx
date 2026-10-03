@@ -2,14 +2,35 @@ import Constants from 'expo-constants';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import * as BackgroundTask from 'expo-background-task';
 import { lastSyncAt, lastSyncError, unsentOpCount } from '../db/queries';
 import { collectGarbage } from '../sync/blobs';
 import { isWifiOnly, localImageBytes, createBlobPort, setWifiOnly } from '../media/blob-port';
 import { rescheduleAllReminders } from '../notifications/reconcile';
 import { currentEmail, isSignedIn, signIn, signOut } from '../sync/google-auth';
+import { getDb } from '../db';
 import { makeDrive, runSync } from '../sync/run';
+
+/** 開発用: Drive の専用領域のファイル内訳（種類ごとの数と、端末ごとの数） */
+async function driveBreakdown(): Promise<string> {
+  const files = await makeDrive().listFiles();
+  const by: Record<string, number> = {};
+  for (const f of files) {
+    const k = f.appProperties?.kind ?? '?';
+    by[k] = (by[k] ?? 0) + 1;
+    if (k === 'ops' || k === 'snapshot') by[`${k}@${f.appProperties?.deviceId}`] = (by[`${k}@${f.appProperties?.deviceId}`] ?? 0) + 1;
+  }
+  return `Drive: ${files.length} 件 ${JSON.stringify(by)}`;
+}
+
+/** 開発用: 自端末が Drive に作ったファイルを削除する（ユーザーが Drive 側のデータを消した状況の再現） */
+async function devDeleteOwnFiles(): Promise<number> {
+  const ids: string[] = JSON.parse(getDb().getFirstSync<{ value: string }>("SELECT value FROM sync_state WHERE key = 'own_files'")?.value ?? '[]');
+  const drive = makeDrive();
+  for (const id of ids) await drive.deleteFile(id);
+  return ids.length;
+}
 
 export default function Settings() {
   const [email, setEmail] = useState<string | null>(null);
@@ -28,12 +49,12 @@ export default function Settings() {
   }, []);
   useFocusEffect(reload);
 
-  const run = async (fn: () => Promise<unknown>, ok: string) => {
+  const run = async <T,>(fn: () => Promise<T>, ok: string | ((r: T) => string)) => {
     setBusy(true);
     setMessage('');
     try {
-      await fn();
-      setMessage(ok);
+      const r = await fn();
+      setMessage(typeof ok === 'function' ? ok(r) : ok);
     } catch (e) {
       setMessage(`失敗しました: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -43,7 +64,7 @@ export default function Settings() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
       <Text style={styles.heading}>Google ドライブで同期</Text>
       <Text style={styles.note}>
         同期データは、ご自身の Google ドライブの専用領域（アプリ以外からは見えない）にだけ保存されます。開発者は保持しません。
@@ -125,14 +146,29 @@ export default function Settings() {
           </Pressable>
         </View>
       ) : null}
+      {__DEV__ && signed ? (
+        <View style={styles.section}>
+          <Text style={styles.heading}>（開発用）圧縮と消失復旧</Text>
+          <Pressable style={[styles.button, styles.secondary]} disabled={busy} onPress={() => run(async () => { await runSync({ compactMinFiles: 1 }); return driveBreakdown(); }, (r) => r)}>
+            <Text style={[styles.buttonText, styles.secondaryText]}>今すぐ圧縮して同期</Text>
+          </Pressable>
+          <Pressable style={[styles.button, styles.secondary]} disabled={busy} onPress={() => run(devDeleteOwnFiles, (n) => `自端末のファイルを ${n} 件削除しました`)}>
+            <Text style={[styles.buttonText, styles.secondaryText]}>Drive 上の自端末ファイルを削除</Text>
+          </Pressable>
+          <Pressable style={[styles.button, styles.secondary]} disabled={busy} onPress={() => run(driveBreakdown, (r) => r)}>
+            <Text style={[styles.buttonText, styles.secondaryText]}>Drive のファイル内訳を表示</Text>
+          </Pressable>
+        </View>
+      ) : null}
       {busy ? <ActivityIndicator style={styles.spinner} /> : null}
       {message ? <Text style={styles.message}>{message}</Text> : null}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, gap: 12, backgroundColor: '#fff' },
+  scroll: { flex: 1, backgroundColor: '#fff' },
+  container: { padding: 20, paddingBottom: 60, gap: 12 },
   heading: { fontSize: 20, fontWeight: '700' },
   note: { color: '#666', lineHeight: 20 },
   status: { fontSize: 15 },

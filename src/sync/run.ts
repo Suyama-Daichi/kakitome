@@ -6,15 +6,15 @@ import { reconcileReminders } from '../notifications/reconcile';
 import { refreshWidget } from '../widget/refresh';
 import { createDriveClient } from './drive';
 import { discardAccessToken, getAccessToken } from './google-auth';
-import { syncOnce } from './sync';
+import { syncOnce, type SyncOptions } from './sync';
 
 // 画像のバイナリ（Uint8Array の送信・ArrayBuffer の受信）を扱えるよう expo/fetch を使う
 export const makeDrive = () => createDriveClient(expoFetch as unknown as typeof fetch, getAccessToken, discardAccessToken);
 
 /** 手動・自動・バックグラウンド共通の同期。失敗時は例外（次回の同期が再試行になる） */
-export async function runSync(): Promise<void> {
+export async function runSync(opts?: SyncOptions): Promise<void> {
   const { ctx, tx } = openCore();
-  await syncOnce(ctx, makeDrive(), tx, createBlobPort());
+  await syncOnce(ctx, makeDrive(), tx, createBlobPort(), opts);
   ctx.store.setState('last_sync_at', new Date().toISOString());
   ctx.store.setState('last_error', '');
   refreshWidget();

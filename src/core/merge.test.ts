@@ -116,17 +116,51 @@ describe('競合コピー', () => {
     );
   });
 
-  test('同じ端末の連続編集が逆順に届いても競合にならない', () => {
+  test('同じ端末の連続編集は、どの順序で届いても競合にならない', () => {
     const time = { t: 1_000 };
     const A = device('dev-a', time);
     const create = applyLocalOp(A, 'note', 'n1', { title: 't', body: 'b' });
     const e1 = applyLocalOp(A, 'note', 'n1', { body: 'v1' });
     const e2 = applyLocalOp(A, 'note', 'n1', { body: 'v2' });
-    // [create, e2, e1] は e2 到着時に親 e1 が未着で、同時編集に見える（§5.2 で許容済みの誤検知）
-    for (const order of [[e2, create, e1], [e2, e1, create]]) {
+    const e3 = applyLocalOp(A, 'note', 'n1', { body: 'v3' });
+    const all = [create, e1, e2, e3];
+    for (let seed = 0; seed < 60; seed++) {
+      const r = replica(shuffle(all, seed));
+      expect(copies(r)).toHaveLength(0);
+      expect(r.snapshot().note.n1.body).toBe('v3');
+    }
+  });
+
+  test('別の端末が作ったメモを連続して編集しても、途中の op が届かなければ競合にしない（同じ端末ルール＋最初の base）', () => {
+    // B が作成 → A が見てから 3 回編集。A の途中の op を飛ばして最後の op だけが届くケース（圧縮後の復元に相当）
+    const time = { t: 1_000 };
+    const [A, B] = [device('dev-a', time), device('dev-b', time)];
+    const create = applyLocalOp(B, 'note', 'n1', { title: 't', body: 'b' });
+    mergeRemoteOps(A, [create]);
+    time.t += 1;
+    const e1 = applyLocalOp(A, 'note', 'n1', { body: 'v1' });
+    applyLocalOp(A, 'note', 'n1', { body: 'v2' });
+    const e3 = applyLocalOp(A, 'note', 'n1', { body: 'v3' });
+    const lastOnly: typeof e3 = { ...e3, base: { body: e1.base.body } }; // 圧縮: 最後の値＋最初の base
+    for (const order of [[create, lastOnly], [lastOnly, create]]) {
       const r = replica(order);
       expect(copies(r)).toHaveLength(0);
-      expect(r.snapshot().note.n1.body).toBe('v2');
+      expect(r.snapshot().note.n1.body).toBe('v3');
+    }
+  });
+
+  test('圧縮された側と別の端末が同時に編集したときは、これまでどおり競合コピーが 1 つできる', () => {
+    const time = { t: 1_000 };
+    const [A, B] = [device('dev-a', time), device('dev-b', time)];
+    const create = applyLocalOp(A, 'note', 'n1', { title: 't', body: 'b' });
+    mergeRemoteOps(B, [create]);
+    time.t += 1;
+    const e1 = applyLocalOp(A, 'note', 'n1', { body: 'a1' });
+    const e2 = applyLocalOp(A, 'note', 'n1', { body: 'a2' });
+    const b1 = applyLocalOp(B, 'note', 'n1', { body: 'b1' });
+    const lastOnly: typeof e2 = { ...e2, base: { body: e1.base.body } };
+    for (const order of [[create, lastOnly, b1], [create, b1, lastOnly], [b1, create, lastOnly]]) {
+      expect(copies(replica(order))).toHaveLength(1);
     }
   });
 
