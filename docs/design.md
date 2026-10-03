@@ -363,6 +363,11 @@ appDataFolder/
 - Drive への送信は次回起動時またはバックグラウンドタスクで行う
 - 画像は表示しない
 - **同期コア（`applyLocalOp` 等）はヘッドレス JS でも動くよう、UI・画像処理系の依存を持たせない**
+- **PoC で確認済み（Android エミュレータ API 37、Development Build）**: アプリのプロセスが無い状態でウィジェットの項目をタップすると、ヘッドレス JS で expo-sqlite を開いて `applyLocalOp` を実行でき、DB の更新とウィジェットの再描画（完了項目が下へ移動）まで動く。アプリ側でも同じ状態が見える
+- ウィジェットのコンポーネントファイルの先頭に `"use no memo";` が必須（React Compiler が有効だと描画時に Invalid Hook Call になる）
+- ヘッドレス起動のエントリは `index.ts`（`package.json` の `main`）。`registerWidgetTaskHandler` は `_layout.tsx` ではなくここで呼ぶ
+- ウィジェットのタスクハンドラは都度新しいプロセスで起動し得るため、端末 ID と HLC の最終値は `sync_state` に永続化する
+- 検証時の注意: `adb shell am force-stop` で停止状態にすると、アプリを起動し直すまでウィジェットのクリックが配送されない。プロセスだけ落とすなら `am kill` を使う
 - clickAction は Android 7 以上でのみ動作する。ウィジェットは React Native の View を画像としてレンダリングする方式である点に留意する
 
 ---
@@ -438,6 +443,7 @@ app/               Expo Router の画面
 - Android 12 以降の正確なアラーム権限の扱い
 - 汎用ライブラリ（分数インデックス、UUIDv7/v5）を採用するか自前実装するか
 - 墓標・op の長期的なガベージコレクション方針
+- `src/db/` のスキーマは、列単位の upsert のため NOT NULL 列に `DEFAULT ''` を付けている（§3.2 の DDL と差がある）。スキーマのマイグレーション機構は未実装
 
 ## 参考
 
