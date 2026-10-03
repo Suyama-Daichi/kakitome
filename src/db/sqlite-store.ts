@@ -23,6 +23,24 @@ export class SqliteStore implements Store {
     return r ? (JSON.parse(r.payload) as Op) : undefined;
   }
 
+  unsentOps() {
+    return this.db
+      .getAllSync<{ payload: string }>('SELECT payload FROM ops WHERE uploaded = 0 ORDER BY hlc')
+      .map((r) => JSON.parse(r.payload) as Op);
+  }
+
+  markUploaded(ids: string[]) {
+    for (const id of ids) this.db.runSync('UPDATE ops SET uploaded = 1 WHERE id = ?', id);
+  }
+
+  getState(key: string) {
+    return this.db.getFirstSync<{ value: string }>('SELECT value FROM sync_state WHERE key = ?', key)?.value;
+  }
+
+  setState(key: string, value: string) {
+    this.db.runSync('INSERT OR REPLACE INTO sync_state (key, value) VALUES (?, ?)', key, value);
+  }
+
   getField(entity: Entity, id: string, field: string): FieldState | undefined {
     const c = this.db.getFirstSync<{ hlc: string; base: string | null }>(
       'SELECT hlc, base FROM field_clocks WHERE entity = ? AND entity_id = ? AND field = ?',

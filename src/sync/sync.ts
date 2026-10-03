@@ -1,0 +1,86 @@
+import { parseHlc } from '../core/hlc';
+import { mergeRemoteOps, type Ctx } from '../core/merge';
+import type { Op } from '../core/ops';
+import type { Store } from '../core/store';
+import type { DriveClient, DriveFile } from './drive';
+
+export interface SyncStore extends Store {
+  /** 送信待ち（自端末の op）を HLC 順で返す */
+  unsentOps(): Op[];
+  markUploaded(ids: string[]): void;
+  getState(key: string): string | undefined;
+  setState(key: string, value: string): void;
+}
+
+const ENTITIES = ['note', 'checklist_item', 'reminder', 'attachment'];
+const isPrimitive = (v: unknown) => v === null || ['string', 'number', 'boolean'].includes(typeof v);
+
+/** 壊れた行・不正な op で同期全体が止まらないよう、受信 op は形を検証して捨てる */
+function parseOps(text: string): Op[] {
+  const ops: Op[] = [];
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const o = JSON.parse(line);
+      const ok =
+        typeof o.id === 'string' && typeof o.hlc === 'string' && ENTITIES.includes(o.entity) &&
+        typeof o.entityId === 'string' && o.fields && o.base &&
+        Object.values(o.fields).every(isPrimitive) && Object.values(o.base).every((v) => typeof v === 'string');
+      if (ok) {
+        parseHlc(o.hlc);
+        ops.push(o);
+      }
+    } catch {
+      // 不正な行は無視
+    }
+  }
+  return ops;
+}
+
+/**
+ * 1回の同期: 未送信 op を不変ファイルとして新規作成 → 他端末のファイルを取得して適用（設計 §6.3）。
+ * どこで失敗しても再実行でき、適用が冪等なので重複しても収束する。
+ * `tx` は受信 op の適用を囲むトランザクション（SQLite 用）。
+ */
+export async function syncOnce(
+  ctx: Ctx & { store: SyncStore },
+  drive: DriveClient,
+  tx: <T>(fn: () => T) => T = (fn) => fn(),
+): Promise<void> {
+  const { store } = ctx;
+  const device = parseHlc(ctx.clock.last()).device;
+
+  const unsent = store.unsentOps();
+  if (unsent.length) {
+    const first = unsent[0].hlc;
+    await drive.createFile(
+      { name: `ops_${device}_${first}.jsonl`, appProperties: { deviceId: device, hlc: first, kind: 'ops' } },
+      unsent.map((o) => JSON.stringify(o)).join('\n') + '\n',
+    );
+    store.markUploaded(unsent.map((o) => o.id)); // ここで落ちても次回は別ファイルで再送されるだけ
+  }
+
+  const ingest = async (files: (DriveFile | undefined)[]) => {
+    for (const f of files) {
+      const p = f?.appProperties;
+      if (!f || p?.kind !== 'ops' || p.deviceId === device) continue; // 自端末のファイルは適用済み
+      const ops = parseOps(await drive.download(f.id));
+      tx(() => mergeRemoteOps(ctx, ops));
+    }
+  };
+
+  let token = store.getState('drive_page_token');
+  if (!token) {
+    // 先にトークンを取ってから全件を読む。間に増えたファイルは次の changes で拾う
+    token = await drive.getStartPageToken();
+    await ingest(await drive.listFiles());
+    store.setState('drive_page_token', token);
+  }
+  for (;;) {
+    const page = await drive.listChanges(token);
+    await ingest(page.changes.filter((c) => !c.removed).map((c) => c.file));
+    token = page.nextPageToken ?? page.newStartPageToken ?? token;
+    store.setState('drive_page_token', token); // 処理後に進める（少なくとも1回は適用）
+    if (!page.nextPageToken) break;
+  }
+}

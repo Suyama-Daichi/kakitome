@@ -39,6 +39,19 @@ export class MemoryStore implements Store {
     this.fields.set(this.key(e, id, f), state);
   }
 
+  unsentOps = () => [...this.ops.values()].filter((o) => !o.uploaded).map((o) => o.op).sort((a, b) => (a.hlc < b.hlc ? -1 : 1));
+  markUploaded(ids: string[]) {
+    for (const id of ids) {
+      const o = this.ops.get(id);
+      if (o) o.uploaded = true;
+    }
+  }
+  private state = new Map<string, string>();
+  getState = (key: string) => this.state.get(key);
+  setState(key: string, value: string) {
+    this.state.set(key, value);
+  }
+
   /** entity → id → field → value。レプリカ間の状態比較用 */
   snapshot(): Record<string, Record<string, Record<string, Json>>> {
     const out: Record<string, Record<string, Record<string, Json>>> = {};

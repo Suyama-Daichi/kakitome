@@ -301,6 +301,14 @@ appDataFolder/
 3. **タイミング**: アプリ起動時、フォアグラウンド復帰時、ウィジェット操作後、expo-background-task（ベストエフォート）
 4. 変更通知（Webhook）はサーバーが必要なため使わない
 
+実装上の取り決め（`src/sync/`）:
+
+- 初回（ページトークン無し）は、先に `changes.getStartPageToken` でトークンを取り、その後 `files.list(spaces=appDataFolder)` で全件を読む。間に増えたファイルは次の `changes.list` で拾う。`getStartPageToken` に `spaces` パラメータは無く、得たトークンを `changes.list(spaces=appDataFolder)` に渡す（実トークンでの動作は Drive 実機検証で確認する）
+- ページトークンは、そのページのファイルを適用した後で保存する（少なくとも1回は適用。重複は §4.3 の冪等性で吸収）
+- 自端末が作ったファイルは取得しない。受信しただけの op は再送しない（`ops.uploaded = 1` で受信）
+- 受信した op は形を検証し、壊れた行・不正な op・プリミティブ以外のフィールド値は捨てる（1ファイルの破損で同期全体が止まらないようにする）
+- Drive クライアントは `fetch` とトークン取得関数を注入する。テストはインメモリの `FakeDrive` で行う
+
 ### 6.4 圧縮
 
 - **各端末は自分の op だけを、自分で圧縮する**
