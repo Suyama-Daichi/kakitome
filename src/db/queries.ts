@@ -55,3 +55,4 @@ export const maxItemKey = (noteId: string) =>
 
 export const unsentOpCount = () => getDb().getFirstSync<{ n: number }>('SELECT COUNT(*) AS n FROM ops WHERE uploaded = 0')?.n ?? 0;
 export const lastSyncAt = () => getDb().getFirstSync<{ value: string }>("SELECT value FROM sync_state WHERE key = 'last_sync_at'")?.value ?? null;
+export const lastSyncError = () => getDb().getFirstSync<{ value: string }>("SELECT value FROM sync_state WHERE key = 'last_error'")?.value ?? null;

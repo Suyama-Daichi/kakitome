@@ -3,7 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { addItem, deleteItem, toggleItem, updateItemText, updateNote } from '../../db/actions';
 import { getNote, listItems, type Item } from '../../db/queries';
-import { refreshWidget } from '../../widget/refresh';
+import { subscribeDbChanges } from '../../db/changes';
+import { onLocalChange } from '../../sync/auto';
 
 /** 入力のたびに op を出さないよう、入力が止まって 500ms 後と画面を離れるときに保存する */
 function useAutosave(value: string, save: (v: string) => void) {
@@ -31,14 +32,14 @@ function useAutosave(value: string, save: (v: string) => void) {
 
 function ItemRow({ item, onChange }: { item: Item; onChange: () => void }) {
   const [text, setText] = useState(item.text);
-  useAutosave(text, useCallback((v) => { updateItemText(item.id, v); refreshWidget(); }, [item.id]));
+  useAutosave(text, useCallback((v) => { updateItemText(item.id, v); onLocalChange(); }, [item.id]));
   return (
     <View style={styles.itemRow}>
-      <Pressable onPress={() => { toggleItem(item.id); onChange(); refreshWidget(); }} hitSlop={8} accessibilityLabel="完了を切り替え">
+      <Pressable onPress={() => { toggleItem(item.id); onChange(); onLocalChange(); }} hitSlop={8} accessibilityLabel="完了を切り替え">
         <Text style={styles.check}>{item.checked ? '☑' : '☐'}</Text>
       </Pressable>
       <TextInput style={[styles.itemInput, item.checked ? styles.done : null]} value={text} onChangeText={setText} placeholder="項目" />
-      <Pressable onPress={() => { deleteItem(item.id); onChange(); refreshWidget(); }} hitSlop={8} accessibilityLabel="項目を削除">
+      <Pressable onPress={() => { deleteItem(item.id); onChange(); onLocalChange(); }} hitSlop={8} accessibilityLabel="項目を削除">
         <Text style={styles.remove}>✕</Text>
       </Pressable>
     </View>
@@ -54,15 +55,18 @@ export default function NoteEditor() {
   const [items, setItems] = useState<Item[]>(() => listItems(id));
   const reload = useCallback(() => setItems(listItems(id)), [id]);
 
-  useAutosave(title, useCallback((v) => { updateNote(id, { title: v }); refreshWidget(); }, [id]));
-  useAutosave(body, useCallback((v) => updateNote(id, { body: v }), [id]));
+  // 同期で届いた変更は項目一覧にだけ反映する。入力中のタイトル・本文は上書きしない（保存時に LWW で解決）
+  useEffect(() => subscribeDbChanges(reload), [reload]);
+
+  useAutosave(title, useCallback((v) => { updateNote(id, { title: v }); onLocalChange(); }, [id]));
+  useAutosave(body, useCallback((v) => { updateNote(id, { body: v }); onLocalChange(); }, [id]));
 
   if (!note) return <Text style={styles.missing}>このメモは削除されました</Text>;
 
   const remove = () =>
     Alert.alert('メモを削除', 'このメモを削除しますか？', [
       { text: 'キャンセル', style: 'cancel' },
-      { text: '削除', style: 'destructive', onPress: () => { updateNote(id, { deleted: 1 }); refreshWidget(); router.back(); } },
+      { text: '削除', style: 'destructive', onPress: () => { updateNote(id, { deleted: 1 }); onLocalChange(); router.back(); } },
     ]);
 
   return (
@@ -80,7 +84,7 @@ export default function NoteEditor() {
       <TextInput style={styles.titleInput} value={title} onChangeText={setTitle} placeholder="タイトル" />
       <TextInput style={styles.bodyInput} value={body} onChangeText={setBody} placeholder="メモ" multiline />
       {items.map((it) => <ItemRow key={it.id} item={it} onChange={reload} />)}
-      <Pressable style={styles.add} onPress={() => { addItem(id); reload(); refreshWidget(); }}>
+      <Pressable style={styles.add} onPress={() => { addItem(id); reload(); onLocalChange(); }}>
         <Text style={styles.addText}>＋ 項目を追加</Text>
       </Pressable>
     </ScrollView>

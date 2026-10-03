@@ -127,6 +127,24 @@ describe('REST クライアント', () => {
     expect(calls.at(-1)!.url).toContain('spaces=appDataFolder');
   });
 
+  test('401 は古いトークンを破棄して 1 回だけ再試行する。再び 401 なら例外', async () => {
+    const tokens = ['old', 'new'];
+    const discarded: string[] = [];
+    const seen: string[] = [];
+    const f = (async (_u: string, init: RequestInit) => {
+      const auth = (init.headers as Record<string, string>).Authorization;
+      seen.push(auth);
+      return auth === 'Bearer new' ? new Response(JSON.stringify({ startPageToken: '1' }), { status: 200 }) : new Response('expired', { status: 401 });
+    }) as unknown as typeof fetch;
+    const c = createDriveClient(f, async () => tokens[discarded.length], async (t) => { discarded.push(t); });
+    expect(await c.getStartPageToken()).toBe('1');
+    expect(seen).toEqual(['Bearer old', 'Bearer new']);
+    expect(discarded).toEqual(['old']);
+
+    const always401 = createDriveClient((async () => new Response('no', { status: 401 })) as unknown as typeof fetch, async () => 't', async () => {});
+    await expect(always401.getStartPageToken()).rejects.toThrow('401');
+  });
+
   test('HTTP エラーは例外にする', async () => {
     const bad = createDriveClient((async () => new Response('no', { status: 401 })) as unknown as typeof fetch, async () => 't');
     await expect(bad.getStartPageToken()).rejects.toThrow('401');

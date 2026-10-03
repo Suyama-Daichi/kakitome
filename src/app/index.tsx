@@ -1,12 +1,15 @@
 import { router, Stack, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { createNote } from '../db/actions';
+import { subscribeDbChanges } from '../db/changes';
 import { listNotes, type NoteRow } from '../db/queries';
 
 export default function NoteList() {
   const [notes, setNotes] = useState<NoteRow[]>([]);
-  useFocusEffect(useCallback(() => setNotes(listNotes()), []));
+  const reload = useCallback(() => setNotes(listNotes()), []);
+  useFocusEffect(reload);
+  useEffect(() => subscribeDbChanges(reload), [reload]);
 
   const open = (id: string) => router.push({ pathname: '/note/[id]', params: { id } });
 

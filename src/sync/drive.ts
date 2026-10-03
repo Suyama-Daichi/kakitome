@@ -28,9 +28,19 @@ const API = 'https://www.googleapis.com/drive/v3';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
 const FILE_FIELDS = 'id,name,appProperties';
 
-export function createDriveClient(fetchFn: typeof fetch, getToken: () => Promise<string>): DriveClient {
-  async function call(url: string, init: RequestInit = {}) {
-    const res = await fetchFn(url, { ...init, headers: { ...init.headers, Authorization: `Bearer ${await getToken()}` } });
+/** onUnauthorized: 401（トークン期限切れ）のとき、使ったトークンを破棄するために呼ばれる。その後 1 回だけ再試行する */
+export function createDriveClient(
+  fetchFn: typeof fetch,
+  getToken: () => Promise<string>,
+  onUnauthorized?: (token: string) => Promise<void>,
+): DriveClient {
+  async function call(url: string, init: RequestInit = {}, retried = false): Promise<Response> {
+    const token = await getToken();
+    const res = await fetchFn(url, { ...init, headers: { ...init.headers, Authorization: `Bearer ${token}` } });
+    if (res.status === 401 && onUnauthorized && !retried) {
+      await onUnauthorized(token);
+      return call(url, init, true);
+    }
     if (!res.ok) throw new Error(`Drive API ${res.status}: ${await res.text()}`);
     return res;
   }

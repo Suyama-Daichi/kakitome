@@ -17,3 +17,7 @@ export const signOut = () => GoogleSignin.signOut();
 export async function getAccessToken(): Promise<string> {
   return (await GoogleSignin.getTokens()).accessToken;
 }
+
+export const discardAccessToken = async (token: string) => {
+  await GoogleSignin.clearCachedAccessToken(token);
+};

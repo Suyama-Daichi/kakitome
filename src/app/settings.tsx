@@ -1,7 +1,8 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { lastSyncAt, unsentOpCount } from '../db/queries';
+import * as BackgroundTask from 'expo-background-task';
+import { lastSyncAt, lastSyncError, unsentOpCount } from '../db/queries';
 import { currentEmail, isSignedIn, signIn, signOut } from '../sync/google-auth';
 import { runSync } from '../sync/run';
 
@@ -10,12 +11,12 @@ export default function Settings() {
   const [signed, setSigned] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-  const [info, setInfo] = useState({ unsent: 0, last: null as string | null });
+  const [info, setInfo] = useState({ unsent: 0, last: null as string | null, error: null as string | null });
 
   const reload = useCallback(() => {
     setSigned(isSignedIn());
     setEmail(currentEmail());
-    setInfo({ unsent: unsentOpCount(), last: lastSyncAt() });
+    setInfo({ unsent: unsentOpCount(), last: lastSyncAt(), error: lastSyncError() || null });
   }, []);
   useFocusEffect(reload);
 
@@ -44,6 +45,7 @@ export default function Settings() {
           <Text style={styles.status}>サインイン中: {email ?? '（不明）'}</Text>
           <Text style={styles.status}>未送信の変更: {info.unsent} 件</Text>
           <Text style={styles.status}>最終同期: {info.last ? new Date(info.last).toLocaleString() : 'まだありません'}</Text>
+          {info.error ? <Text style={styles.error}>直近の自動同期の失敗: {info.error}</Text> : null}
           <Pressable style={styles.button} disabled={busy} onPress={() => run(runSync, '同期しました')}>
             <Text style={styles.buttonText}>今すぐ同期</Text>
           </Pressable>
@@ -56,6 +58,11 @@ export default function Settings() {
           <Text style={styles.buttonText}>Google アカウントで同期を始める</Text>
         </Pressable>
       )}
+      {__DEV__ && signed ? (
+        <Pressable style={[styles.button, styles.secondary]} disabled={busy} onPress={() => run(() => BackgroundTask.triggerTaskWorkerForTestingAsync(), 'バックグラウンド同期を実行しました')}>
+          <Text style={[styles.buttonText, styles.secondaryText]}>（開発用）バックグラウンド同期を実行</Text>
+        </Pressable>
+      ) : null}
       {busy ? <ActivityIndicator style={styles.spinner} /> : null}
       {message ? <Text style={styles.message}>{message}</Text> : null}
     </View>
@@ -71,6 +78,7 @@ const styles = StyleSheet.create({
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   secondary: { backgroundColor: '#eee' },
   secondaryText: { color: '#333' },
+  error: { color: '#b3261e' },
   spinner: { marginTop: 8 },
   message: { marginTop: 8, color: '#444' },
 });
