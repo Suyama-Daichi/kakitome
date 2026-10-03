@@ -54,7 +54,8 @@
               "minHeight": "180dp",
               "targetCellWidth": 3,
               "targetCellHeight": 3,
-              "resizeMode": "horizontal|vertical"
+              "resizeMode": "horizontal|vertical",
+              "widgetFeatures": "reconfigurable"
             }
           ]
         }

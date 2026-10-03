@@ -3,14 +3,25 @@ import { getDb } from './index';
 export interface Item { id: string; text: string; checked: number }
 export interface NoteView { id: string; title: string; items: Item[] }
 
-/** §3.4: 完了は下へ。アプリもウィジェットも同じクエリ。競合コピーは除外 */
-export function firstNoteWithItems(): NoteView | undefined {
+const widgetKey = (widgetId: number) => `widget_note:${widgetId}`;
+
+/** ウィジェットごとの表示メモ（この端末だけの設定で、同期しない）。null は「一覧の先頭のメモ」 */
+export function setWidgetNote(widgetId: number, noteId: string | null) {
   const db = getDb();
-  const note = db.getFirstSync<{ id: string; title: string }>(
-    "SELECT id, title FROM notes WHERE deleted = 0 AND conflict_of IS NULL ORDER BY sort_key, id LIMIT 1",
-  );
-  if (!note) return undefined;
-  return { ...note, items: listItems(note.id) };
+  if (noteId) db.runSync('INSERT OR REPLACE INTO sync_state (key, value) VALUES (?, ?)', widgetKey(widgetId), noteId);
+  else db.runSync('DELETE FROM sync_state WHERE key = ?', widgetKey(widgetId));
+}
+
+/** §3.4: 完了は下へ。アプリもウィジェットも同じクエリ。競合コピーは除外。選んだメモが無い・削除済みなら先頭のメモ */
+export function widgetNote(widgetId: number): NoteView | undefined {
+  const db = getDb();
+  const chosen = db.getFirstSync<{ value: string }>('SELECT value FROM sync_state WHERE key = ?', widgetKey(widgetId))?.value;
+  const note =
+    (chosen && db.getFirstSync<{ id: string; title: string }>('SELECT id, title FROM notes WHERE id = ? AND deleted = 0', chosen)) ||
+    db.getFirstSync<{ id: string; title: string }>(
+      'SELECT id, title FROM notes WHERE deleted = 0 AND conflict_of IS NULL ORDER BY pinned DESC, sort_key, id LIMIT 1',
+    );
+  return note ? { ...note, items: listItems(note.id) } : undefined;
 }
 
 export function itemChecked(id: string): number {

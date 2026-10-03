@@ -423,7 +423,7 @@ appDataFolder/
 ## 8. Android ウィジェット
 
 - react-native-android-widget を Expo Config Plugin で導入する
-- 表示: 1つのメモのチェックリスト（未完了→完了の順、§3.4 と同じクエリ）
+- 表示: 1つのメモのチェックリスト（未完了→完了の順、§3.4 と同じクエリ）。表示するメモはウィジェットごとに選ぶ（追加時と、長押しの設定から開く設定画面。`widgetFeatures: reconfigurable`、`registerWidgetConfigurationScreen`）。選択は `sync_state` の `widget_note:<widgetId>` に保存する（この端末だけの設定で、同期しない）。未選択、または選んだメモが削除済みなら、一覧の先頭のメモを表示する
 - 操作: 項目タップで `clickAction` + `clickActionData: { itemId }` を発火 → タスクハンドラで `applyLocalOp` を呼び `checked` をトグル → 再描画
 - Drive への送信は次回起動時またはバックグラウンドタスクで行う
 - 画像は表示しない
@@ -498,6 +498,7 @@ app/               Expo Router の画面
 | 11 | ウィジェットの画像表示 | 出さない | シンプルさとヘッドレス JS の軽量化 |
 | 12 | 画像アップロード | 「Wi-Fi 接続時のみ」設定を用意（本体のみ対象） | モバイル通信量の節約と同期の即時性の両立 |
 | 13 | 競合コピーの ID | 元メモ ID＋敗者 op ID＋フィールド名 | 1つの op で title/body 両方が負けた場合の ID 衝突を避ける |
+| 14 | ウィジェットの表示メモ | ウィジェットごとに選択。端末ローカルで同期しない | 端末ごとにホーム画面の構成が違う。未選択は一覧の先頭（並び替えに追従） |
 
 ---
 
