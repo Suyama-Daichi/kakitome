@@ -1,3 +1,4 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -7,6 +8,7 @@ import { AttachmentSection } from '../../components/AttachmentSection';
 import { ReminderSection } from '../../components/ReminderSection';
 import { notifyDbChanged, subscribeDbChanges } from '../../db/changes';
 import { onLocalChange } from '../../sync/auto';
+import { radius, size, space, type, useThemed, type Palette } from '../../ui/theme';
 
 /** 入力のたびに op を出さないよう、入力が止まって 500ms 後と画面を離れるときに保存する */
 function useAutosave(value: string, save: (v: string) => void) {
@@ -33,22 +35,33 @@ function useAutosave(value: string, save: (v: string) => void) {
 }
 
 function ItemRow({ item, onChange }: { item: Item; onChange: () => void }) {
+  const [p, styles] = useThemed(makeStyles);
   const [text, setText] = useState(item.text);
   useAutosave(text, useCallback((v) => { updateItemText(item.id, v); onLocalChange(); }, [item.id]));
   return (
-    <View style={styles.itemRow}>
+    <View style={[styles.itemRow, item.checked ? styles.itemRowDone : null]}>
       <Pressable onPress={() => { toggleItem(item.id); onChange(); onLocalChange(); }} hitSlop={8} accessibilityLabel="完了を切り替え">
-        <Text style={styles.check}>{item.checked ? '☑' : '☐'}</Text>
+        <View style={[styles.box, item.checked ? styles.boxOn : null]}>
+          {item.checked ? <MaterialIcons name="check" size={15} color="#fff" /> : null}
+        </View>
       </Pressable>
-      <TextInput style={[styles.itemInput, item.checked ? styles.done : null]} value={text} onChangeText={setText} placeholder="項目" />
+      <TextInput
+        style={[styles.itemInput, item.checked ? styles.done : null]}
+        value={text}
+        onChangeText={setText}
+        placeholder="項目"
+        placeholderTextColor={p.inkDone}
+      />
       <Pressable onPress={() => { deleteItem(item.id); onChange(); onLocalChange(); }} hitSlop={8} accessibilityLabel="項目を削除">
-        <Text style={styles.remove}>✕</Text>
+        <MaterialIcons name="close" size={18} color={p.inkDone} />
       </Pressable>
     </View>
   );
 }
 
 export default function NoteEditor() {
+  const [p, styles] = useThemed(makeStyles);
+  const [showDone, setShowDone] = useState(true);
   const { id } = useLocalSearchParams<{ id: string }>();
   const note = getNote(id);
   const [title, setTitle] = useState(note?.title ?? '');
@@ -85,51 +98,89 @@ export default function NoteEditor() {
       { text: '削除', style: 'destructive', onPress: () => { updateNote(id, { deleted: 1 }); onLocalChange(); router.back(); } },
     ]);
 
+  const open = items.filter((it) => !it.checked);
+  const done = items.filter((it) => it.checked);
+
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
       <Stack.Screen
         options={{
           headerRight: () => (
             <View style={styles.headerButtons}>
-              <Pressable onPress={() => { const p = pinned ? 0 : 1; setPinned(p); updateNote(id, { pinned: p }); }} accessibilityLabel="ピン留め"><Text style={[styles.headerIcon, pinned ? null : styles.dim]}>📌</Text></Pressable>
-              <Pressable onPress={remove} accessibilityLabel="削除"><Text style={styles.headerIcon}>🗑</Text></Pressable>
+              <Pressable onPress={() => { const v = pinned ? 0 : 1; setPinned(v); updateNote(id, { pinned: v }); }} accessibilityLabel="ピン留め">
+                <MaterialIcons name="push-pin" size={22} color={pinned ? p.yellowText : p.barIcon} style={pinned ? null : styles.dim} />
+              </Pressable>
+              <Pressable onPress={remove} accessibilityLabel="削除"><MaterialIcons name="delete" size={22} color={p.barIcon} /></Pressable>
             </View>
           ),
         }}
       />
       {conflicts > 0 || note.conflict_of ? (
         <Pressable style={styles.conflict} onPress={() => router.push({ pathname: '/conflict/[id]', params: { id } })}>
-          <Text style={styles.conflictText}>⚠ 別の端末の編集と競合しました。タップして解消する</Text>
+          <MaterialIcons name="sync-problem" size={16} color={p.dangerFg} />
+          <Text style={styles.conflictText}>別の端末の編集と競合しました。タップして解消する</Text>
         </Pressable>
       ) : null}
-      <TextInput style={styles.titleInput} value={title} onChangeText={setTitle} placeholder="タイトル" />
-      <TextInput style={styles.bodyInput} value={body} onChangeText={setBody} placeholder="メモ" multiline />
-      {items.map((it) => <ItemRow key={it.id} item={it} onChange={reload} />)}
-      <Pressable style={styles.add} onPress={() => { addItem(id); reload(); onLocalChange(); }}>
-        <Text style={styles.addText}>＋ 項目を追加</Text>
-      </Pressable>
+      <TextInput style={styles.titleInput} value={title} onChangeText={setTitle} placeholder="タイトル" placeholderTextColor={p.inkDone} />
+      <View style={styles.card}>
+        <Text style={styles.cardLabel}>メモ</Text>
+        <TextInput style={styles.bodyInput} value={body} onChangeText={setBody} placeholder="メモ" placeholderTextColor={p.inkDone} multiline />
+      </View>
+      <View style={styles.card}>
+        {items.length ? (
+          <View style={styles.progressRow}>
+            <View style={styles.bar}><View style={[styles.barFill, { width: `${(done.length / items.length) * 100}%` }]} /></View>
+            <Text style={styles.count}>{done.length}/{items.length}</Text>
+          </View>
+        ) : null}
+        {open.map((it) => <ItemRow key={it.id} item={it} onChange={reload} />)}
+        <Pressable style={styles.add} onPress={() => { addItem(id); reload(); onLocalChange(); }}>
+          <MaterialIcons name="add" size={20} color={p.accentText} />
+          <Text style={styles.addText}>項目を追加</Text>
+        </Pressable>
+        {done.length ? (
+          <>
+            <View style={styles.divider} />
+            <Pressable style={styles.doneHeader} onPress={() => setShowDone((v) => !v)}>
+              <Text style={styles.doneLabel}>完了 {done.length} 件</Text>
+              <MaterialIcons name={showDone ? 'expand-less' : 'expand-more'} size={20} color={p.inkFaint} />
+            </Pressable>
+            {showDone ? done.map((it) => <ItemRow key={it.id} item={it} onChange={reload} />) : null}
+          </>
+        ) : null}
+      </View>
       <AttachmentSection noteId={id} />
       <ReminderSection noteId={id} />
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { padding: 16, paddingBottom: 80 },
-  missing: { padding: 24, textAlign: 'center', color: '#888' },
-  conflict: { backgroundColor: '#fff4e0', borderRadius: 8, padding: 10, marginBottom: 8 },
-  conflictText: { color: '#8a5a00', fontSize: 14 },
-  titleInput: { fontSize: 22, fontWeight: '700', paddingVertical: 8 },
-  bodyInput: { fontSize: 16, minHeight: 60, paddingVertical: 8, textAlignVertical: 'top' },
-  itemRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 2 },
-  check: { fontSize: 22 },
-  itemInput: { flex: 1, fontSize: 16, paddingVertical: 8 },
-  done: { color: '#999', textDecorationLine: 'line-through' },
-  remove: { fontSize: 16, color: '#999', paddingHorizontal: 4 },
-  add: { paddingVertical: 12 },
-  addText: { color: '#2196f3', fontSize: 16 },
-  headerButtons: { flexDirection: 'row', gap: 16 },
-  headerIcon: { fontSize: 20 },
-  dim: { opacity: 0.3 },
-});
+const makeStyles = (p: Palette) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: p.bg },
+    content: { padding: space.screen, paddingBottom: 80, gap: 10 },
+    missing: { padding: 24, textAlign: 'center', color: p.inkMuted },
+    conflict: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: p.dangerBg, borderColor: p.dangerBorder, borderWidth: 1, borderRadius: radius.button, padding: 10 },
+    conflictText: { ...type.item, color: p.dangerFg, flex: 1 },
+    titleInput: { ...type.noteTitle, color: p.ink, paddingVertical: 8, paddingHorizontal: 6 },
+    card: { backgroundColor: p.surface, borderColor: p.border, borderWidth: 1, borderRadius: radius.card, paddingVertical: 10, paddingHorizontal: space.cardPad },
+    cardLabel: { ...type.label, color: p.inkFaint },
+    bodyInput: { ...type.body, color: p.ink, minHeight: 60, textAlignVertical: 'top' },
+    progressRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+    bar: { flex: 1, height: size.progress, borderRadius: 2, backgroundColor: p.border, overflow: 'hidden' },
+    barFill: { height: size.progress, backgroundColor: p.accent },
+    count: { ...type.monoMeta, color: p.inkFaint },
+    itemRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: size.rowEdit },
+    itemRowDone: { minHeight: 40 },
+    box: { width: size.checkbox, height: size.checkbox, borderRadius: radius.checkbox, borderWidth: 1.5, borderColor: p.checkboxBorder, alignItems: 'center', justifyContent: 'center' },
+    boxOn: { backgroundColor: p.accent, borderColor: p.accent },
+    itemInput: { ...type.body, flex: 1, color: p.ink, paddingVertical: 8 },
+    done: { ...type.item, color: p.inkDone, textDecorationLine: 'line-through' },
+    add: { flexDirection: 'row', alignItems: 'center', gap: 6, height: size.rowEdit },
+    addText: { ...type.item, fontWeight: '500', color: p.accentText },
+    divider: { height: 1, backgroundColor: p.border, marginVertical: 4 },
+    doneHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 36 },
+    doneLabel: { ...type.caption, color: p.inkFaint },
+    headerButtons: { flexDirection: 'row', gap: 16 },
+    dim: { opacity: 0.4 },
+  });

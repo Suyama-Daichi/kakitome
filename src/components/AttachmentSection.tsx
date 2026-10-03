@@ -1,3 +1,4 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
@@ -10,11 +11,13 @@ import { touchBlob } from '../media/blob-port';
 import { ensureBody, type BodyResult } from '../media/body';
 import { importImage } from '../media/process';
 import { onLocalChange } from '../sync/auto';
+import { radius, space, type, useThemed, type Palette } from '../ui/theme';
 
 const THUMB = 96;
 
 /** 添付エリア方式: 本文・チェックリストの下に横スクロールのサムネイル一覧（設計 §7.1） */
 export function AttachmentSection({ noteId }: { noteId: string }) {
+  const [p, styles] = useThemed(makeStyles);
   const [items, setItems] = useState<AttachmentView[]>(() => listAttachments(noteId));
   const [busy, setBusy] = useState(false);
   const [viewing, setViewing] = useState<AttachmentView | null>(null);
@@ -69,14 +72,14 @@ export function AttachmentSection({ noteId }: { noteId: string }) {
                 )}
               </Pressable>
               <Pressable style={styles.remove} hitSlop={8} onPress={() => { deleteAttachment(a.id); reload(); onLocalChange(); }} accessibilityLabel="画像を削除">
-                <Text style={styles.removeText}>✕</Text>
+                <MaterialIcons name="close" size={13} color="#fff" />
               </Pressable>
             </View>
           ))}
         </ScrollView>
       ) : null}
-      {busy ? <ActivityIndicator /> : (
-        <Pressable onPress={add}><Text style={styles.add}>＋ 画像を追加</Text></Pressable>
+      {busy ? <ActivityIndicator color={p.accent} /> : (
+        <Pressable style={styles.addRow} onPress={add}><MaterialIcons name="add-photo-alternate" size={20} color={p.accentText} /><Text style={styles.add}>画像を追加</Text></Pressable>
       )}
       <Modal visible={!!viewing} transparent animationType="fade" onRequestClose={() => setViewing(null)}>
         <Pressable style={styles.viewer} onPress={() => setViewing(null)}>
@@ -96,17 +99,18 @@ export function AttachmentSection({ noteId }: { noteId: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  box: { marginTop: 24, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#ccc', gap: 8 },
-  heading: { fontSize: 15, fontWeight: '600', color: '#555' },
-  row: { gap: 8 },
-  thumb: { width: THUMB, height: THUMB, borderRadius: 8, backgroundColor: '#eee' },
-  placeholder: { alignItems: 'center', justifyContent: 'center', padding: 6 },
-  placeholderText: { fontSize: 11, color: '#777', textAlign: 'center' },
-  remove: { position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
-  removeText: { color: '#fff', fontSize: 12 },
-  add: { fontSize: 16, color: '#2196f3' },
-  viewer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' },
-  full: { width: '100%', height: '100%' },
-  viewerNote: { position: 'absolute', bottom: 48, color: '#fff', fontSize: 13 },
-});
+const makeStyles = (p: Palette) =>
+  StyleSheet.create({
+    box: { backgroundColor: p.surface, borderColor: p.border, borderWidth: 1, borderRadius: radius.card, paddingVertical: 10, paddingHorizontal: space.cardPad, gap: 8 },
+    heading: { ...type.label, color: p.inkFaint },
+    row: { gap: 8 },
+    thumb: { width: THUMB, height: THUMB, borderRadius: 10, backgroundColor: p.chipBg, borderColor: p.border, borderWidth: 1 },
+    placeholder: { alignItems: 'center', justifyContent: 'center', padding: 6, borderStyle: 'dashed', borderColor: p.borderControl },
+    placeholderText: { fontSize: 10, color: p.inkMuted, textAlign: 'center' },
+    remove: { position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
+    addRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36 },
+    add: { ...type.item, fontWeight: '500', color: p.accentText },
+    viewer: { flex: 1, backgroundColor: p.viewerBg, alignItems: 'center', justifyContent: 'center' },
+    full: { width: '100%', height: '100%' },
+    viewerNote: { position: 'absolute', bottom: 48, color: '#dfe8e5', fontSize: 13 },
+  });

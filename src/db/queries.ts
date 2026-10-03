@@ -38,17 +38,31 @@ export interface NoteRow {
   conflict_count: number;
   open_count: number;
   total_count: number;
+  image_count: number;
+  next_reminder: string | null;
+  /** カードに出す未完了項目（最大3件） */
+  preview: Item[];
 }
 
 /** 一覧: ピン留め優先、次に sort_key。競合コピーも表示する（バッジ用に conflict_of を返す） */
 export function listNotes(): NoteRow[] {
-  return getDb().getAllSync<NoteRow>(
+  const db = getDb();
+  const rows = db.getAllSync<Omit<NoteRow, 'preview'>>(
     `SELECT n.id, n.title, n.body, n.pinned, n.conflict_of, n.sort_key,
        (SELECT COUNT(*) FROM notes c WHERE c.conflict_of = n.id AND c.deleted = 0) AS conflict_count,
        (SELECT COUNT(*) FROM checklist_items i WHERE i.note_id = n.id AND i.deleted = 0 AND i.checked = 0) AS open_count,
-       (SELECT COUNT(*) FROM checklist_items i WHERE i.note_id = n.id AND i.deleted = 0) AS total_count
+       (SELECT COUNT(*) FROM checklist_items i WHERE i.note_id = n.id AND i.deleted = 0) AS total_count,
+       (SELECT COUNT(*) FROM attachments a WHERE a.note_id = n.id AND a.deleted = 0) AS image_count,
+       (SELECT MIN(r.fire_at) FROM reminders r WHERE r.note_id = n.id AND r.deleted = 0 AND r.enabled = 1) AS next_reminder
      FROM notes n WHERE n.deleted = 0 ORDER BY n.pinned DESC, n.sort_key, n.id`,
   );
+  return rows.map((n) => ({
+    ...n,
+    preview: db.getAllSync<Item>(
+      'SELECT id, text, checked FROM checklist_items WHERE note_id = ? AND deleted = 0 AND checked = 0 ORDER BY sort_key, id LIMIT 3',
+      n.id,
+    ),
+  }));
 }
 
 export function getNote(id: string): Pick<NoteRow, 'id' | 'title' | 'body' | 'pinned' | 'conflict_of'> | undefined {

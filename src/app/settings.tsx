@@ -9,14 +9,24 @@ import { rescheduleAllReminders } from '../notifications/reconcile';
 import { currentEmail, isSignedIn, signIn, signOut } from '../sync/google-auth';
 import { DevTools } from '../dev/DevTools';
 import { makeDrive, runSync } from '../sync/run';
+import { radius, space, type, useThemed, type Palette } from '../ui/theme';
+import { getThemeMode, setThemeMode, type ThemeMode } from '../ui/theme-mode';
+
+const THEMES: { mode: ThemeMode; label: string }[] = [
+  { mode: 'system', label: '端末に合わせる' },
+  { mode: 'light', label: 'ライト' },
+  { mode: 'dark', label: 'ダーク' },
+];
 
 export default function Settings() {
+  const [p, styles] = useThemed(makeStyles);
   const [email, setEmail] = useState<string | null>(null);
   const [signed, setSigned] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [wifiOnly, setWifiOnlyState] = useState(true);
   const [usage, setUsage] = useState('');
+  const [theme, setTheme] = useState<ThemeMode>(getThemeMode);
   const [info, setInfo] = useState({ unsent: 0, last: null as string | null, error: null as string | null });
 
   const reload = useCallback(() => {
@@ -43,6 +53,15 @@ export default function Settings() {
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
+      <Text style={styles.heading}>テーマ</Text>
+      <View style={styles.segments}>
+        {THEMES.map((t) => (
+          <Pressable key={t.mode} style={[styles.segment, theme === t.mode ? styles.segmentOn : null]} onPress={() => { setThemeMode(t.mode); setTheme(t.mode); }}>
+            <Text style={[styles.segmentText, theme === t.mode ? styles.segmentOnText : null]}>{t.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.note}>ホーム画面のウィジェットは、端末の設定に従います。</Text>
       <Text style={styles.heading}>Google ドライブで同期</Text>
       <Text style={styles.note}>
         同期データは、ご自身の Google ドライブの専用領域（アプリ以外からは見えない）にだけ保存されます。開発者は保持しません。
@@ -69,7 +88,7 @@ export default function Settings() {
         <Text style={styles.heading}>画像</Text>
         <View style={styles.switchRow}>
           <Text style={styles.switchLabel}>画像の本体は Wi-Fi 接続時のみ送受信する</Text>
-          <Switch value={wifiOnly} onValueChange={(v) => { setWifiOnly(v); setWifiOnlyState(v); }} />
+          <Switch value={wifiOnly} trackColor={{ true: p.accent, false: p.border }} thumbColor={p.ink} onValueChange={(v) => { setWifiOnly(v); setWifiOnlyState(v); }} />
         </View>
         <Text style={styles.note}>サムネイルとメモの内容は、モバイル回線でも同期されます。オフにすると、画像の本体もモバイル回線で送受信します。</Text>
         <Pressable
@@ -111,26 +130,32 @@ export default function Settings() {
         </View>
       ) : null}
       {__DEV__ ? <DevTools run={run} busy={busy} signed={signed} /> : null}
-      {busy ? <ActivityIndicator style={styles.spinner} /> : null}
+      {busy ? <ActivityIndicator style={styles.spinner} color={p.accent} /> : null}
       {message ? <Text style={styles.message}>{message}</Text> : null}
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: '#fff' },
-  container: { padding: 20, paddingBottom: 60, gap: 12 },
-  heading: { fontSize: 20, fontWeight: '700' },
-  note: { color: '#666', lineHeight: 20 },
-  status: { fontSize: 15 },
-  button: { backgroundColor: '#2196f3', borderRadius: 8, paddingVertical: 14, alignItems: 'center' },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  secondary: { backgroundColor: '#eee' },
-  secondaryText: { color: '#333' },
-  error: { color: '#b3261e' },
-  section: { gap: 12, marginTop: 16 },
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  switchLabel: { flex: 1, fontSize: 15 },
-  spinner: { marginTop: 8 },
-  message: { marginTop: 8, color: '#444' },
-});
+const makeStyles = (p: Palette) =>
+  StyleSheet.create({
+    scroll: { flex: 1, backgroundColor: p.bg },
+    container: { padding: space.screen, paddingBottom: 60, gap: 10 },
+    heading: { ...type.label, color: p.inkFaint, paddingHorizontal: 6, marginTop: 8 },
+    note: { ...type.caption, color: p.inkMuted, paddingHorizontal: 6 },
+    status: { ...type.small, color: p.ink, paddingHorizontal: 6 },
+    button: { backgroundColor: p.accent, borderRadius: radius.button, height: 44, alignItems: 'center', justifyContent: 'center' },
+    buttonText: { ...type.button, color: p.onAccent },
+    secondary: { backgroundColor: 'transparent', borderWidth: 1, borderColor: p.borderControl },
+    secondaryText: { color: p.inkSub },
+    error: { ...type.small, color: p.dangerFg, paddingHorizontal: 6 },
+    segments: { flexDirection: 'row', gap: 8 },
+    segment: { flex: 1, height: 38, borderRadius: radius.button, borderWidth: 1, borderColor: p.borderControl, alignItems: 'center', justifyContent: 'center' },
+    segmentOn: { backgroundColor: p.accent, borderColor: p.accent },
+    segmentText: { ...type.item, color: p.inkSub },
+    segmentOnText: { color: p.onAccent },
+    section: { gap: 10, marginTop: 8 },
+    switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 6 },
+    switchLabel: { ...type.small, color: p.ink, flex: 1 },
+    spinner: { marginTop: 8 },
+    message: { ...type.small, marginTop: 8, color: p.inkSub, paddingHorizontal: 6 },
+  });

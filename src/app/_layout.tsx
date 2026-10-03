@@ -1,12 +1,16 @@
 import * as Notifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { reconcileReminders } from '../notifications/reconcile';
 import { registerBackgroundSync } from '../sync/background';
 import { startAutoSync } from '../sync/auto';
+import { usePalette } from '../ui/theme';
+import { applyThemeMode, getThemeMode } from '../ui/theme-mode';
 
 export default function RootLayout() {
+  useState(() => applyThemeMode(getThemeMode())); // 最初の描画の前に、保存した配色を反映する
+  const p = usePalette();
   // 通知のタップでそのメモを開く（アプリ終了中からの起動も含む）
   const response = Notifications.useLastNotificationResponse();
   useEffect(() => {
@@ -21,15 +25,22 @@ export default function RootLayout() {
     void registerBackgroundSync();
     return startAutoSync();
   }, []);
-  // 画面は白背景固定（ダークモード未対応）。端末がダークモードでも、時計などのアイコンが白背景に溶けないよう暗い色にする
+  // 配色は端末のライト／ダーク設定に従う。ヘッダーも同じ配色にする
   return (
     <>
-      <StatusBar style="dark" />
-      <Stack>
-      <Stack.Screen name="index" options={{ title: 'kakitome' }} />
-      <Stack.Screen name="note/[id]" options={{ title: '' }} />
-      <Stack.Screen name="conflict/[id]" options={{ title: '競合の解消' }} />
-      <Stack.Screen name="settings" options={{ title: '設定' }} />
+      <StatusBar style="auto" />
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: p.bg },
+          headerTintColor: p.ink,
+          headerShadowVisible: false,
+          contentStyle: { backgroundColor: p.bg },
+        }}
+      >
+        <Stack.Screen name="index" options={{ title: 'kakitome' }} />
+        <Stack.Screen name="note/[id]" options={{ title: '' }} />
+        <Stack.Screen name="conflict/[id]" options={{ title: '競合の解消' }} />
+        <Stack.Screen name="settings" options={{ title: '設定' }} />
       </Stack>
     </>
   );

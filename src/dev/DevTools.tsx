@@ -117,7 +117,7 @@ export function DevTools({ run, busy, signed }: { run: Run; busy: boolean; signe
 
 const styles = StyleSheet.create({
   box: { gap: 12, marginTop: 16 },
-  heading: { fontSize: 20, fontWeight: '700' },
+  heading: { fontSize: 20, fontWeight: '700', color: '#888' },
   button: { backgroundColor: '#eee', borderRadius: 8, paddingVertical: 14, alignItems: 'center' },
   text: { color: '#333', fontSize: 16, fontWeight: '600' },
 });

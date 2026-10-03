@@ -1,15 +1,18 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { createNote, moveNote, updateNote } from '../db/actions';
+import { createNote, moveNote, toggleItem, updateNote } from '../db/actions';
 import { subscribeDbChanges } from '../db/changes';
 import { listNotes, type NoteRow } from '../db/queries';
 import { onLocalChange } from '../sync/auto';
+import { radius, size, space, type, useThemed, type Palette } from '../ui/theme';
 
 const SWIPE_DELETE = -96;
 
 /** 左へスワイプして離すと削除の確認を出す。キャンセルや閾値未満なら元の位置へ戻す */
 function SwipeRow({ onDelete, children }: { onDelete: () => void; children: React.ReactNode }) {
+  const [, styles] = useThemed(makeStyles);
   const x = useRef(new Animated.Value(0)).current;
   const back = () => Animated.spring(x, { toValue: 0, useNativeDriver: true }).start();
   const pan = useRef(
@@ -33,6 +36,7 @@ function SwipeRow({ onDelete, children }: { onDelete: () => void; children: Reac
 
 /** 右端の「≡」を押したまま上下に動かして並び替える。指を離すまで他の操作を横取りされない */
 function DragHandle({ onStart, onMove, onEnd }: { onStart: () => void; onMove: (dy: number) => void; onEnd: () => void }) {
+  const [p, styles] = useThemed(makeStyles);
   const cb = useRef({ onStart, onMove, onEnd });
   cb.current = { onStart, onMove, onEnd };
   const pan = useRef(
@@ -47,22 +51,29 @@ function DragHandle({ onStart, onMove, onEnd }: { onStart: () => void; onMove: (
   ).current;
   return (
     <View {...pan.panHandlers} style={styles.handle} accessibilityLabel="ドラッグして並び替え">
-      <Text style={styles.handleText}>≡</Text>
+      <MaterialIcons name="drag-indicator" size={20} color={p.dragHandle} />
     </View>
   );
 }
 
+const fmtWhen = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
 export default function NoteList() {
+  const [p, styles] = useThemed(makeStyles);
   const [notes, setNotes] = useState<NoteRow[]>([]);
   const reload = useCallback(() => setNotes(listNotes()), []);
   useFocusEffect(reload);
   useEffect(() => subscribeDbChanges(reload), [reload]);
 
-  // 並び替え: from の行を指に追従させ、to まで他の行を1行分ずらして見せる。範囲は同じピン留め状態の行だけ
+  // 並び替え: from のカードを指に追従させ、通り過ぎたカードをその高さ分ずらして見せる。範囲は同じピン留め状態のカードだけ
   const [drag, setDrag] = useState<{ from: number; to: number } | null>(null);
   const dragY = useRef(new Animated.Value(0)).current;
-  const rowH = useRef(60);
+  const heights = useRef(new Map<string, number>());
   const lastDy = useRef(0);
+  const h = (i: number) => heights.current.get(notes[i].id) ?? 100;
   const range = (from: number) => {
     const same = (i: number) => notes[i].pinned === notes[from].pinned;
     let lo = from, hi = from;
@@ -70,16 +81,23 @@ export default function NoteList() {
     while (hi < notes.length - 1 && same(hi + 1)) hi++;
     return [lo, hi];
   };
+  /** 指の移動量 dy から、離したときの位置を求める（隣のカードの半分を越えたら入れ替わる） */
+  const target = (from: number, dy: number) => {
+    const [lo, hi] = range(from);
+    let to = from, acc = 0;
+    if (dy > 0) while (to < hi && dy > acc + h(to + 1) / 2) acc += h(++to);
+    else while (to > lo && -dy > acc + h(to - 1) / 2) acc += h(--to);
+    return to;
+  };
   const dragMove = (from: number, dy: number) => {
     lastDy.current = dy;
     dragY.setValue(dy);
-    const [lo, hi] = range(from);
-    const to = Math.min(hi, Math.max(lo, from + Math.round(dy / rowH.current)));
+    const to = target(from, dy);
     setDrag((d) => (d && d.to !== to ? { from, to } : d));
   };
   const dragEnd = (from: number) => {
     const [lo, hi] = range(from);
-    const to = Math.min(hi, Math.max(lo, from + Math.round(lastDy.current / rowH.current)));
+    const to = target(from, lastDy.current);
     lastDy.current = 0;
     setDrag(null);
     dragY.setValue(0);
@@ -92,8 +110,8 @@ export default function NoteList() {
   };
   const shift = (i: number) => {
     if (!drag || i === drag.from) return 0;
-    if (drag.from < drag.to && i > drag.from && i <= drag.to) return -rowH.current;
-    if (drag.from > drag.to && i < drag.from && i >= drag.to) return rowH.current;
+    if (drag.from < drag.to && i > drag.from && i <= drag.to) return -h(drag.from);
+    if (drag.from > drag.to && i < drag.from && i >= drag.to) return h(drag.from);
     return 0;
   };
 
@@ -104,64 +122,131 @@ export default function NoteList() {
     ]);
 
   const open = (id: string) => router.push({ pathname: '/note/[id]', params: { id } });
+  const check = (itemId: string) => { toggleItem(itemId); onLocalChange(); reload(); };
+
+  const openCount = notes.reduce((a, n) => a + n.open_count, 0);
+  const doneCount = notes.reduce((a, n) => a + n.total_count - n.open_count, 0);
 
   return (
     <View style={styles.container}>
       <Stack.Screen
-        options={{ headerRight: () => <Pressable onPress={() => router.push('/settings')} accessibilityLabel="設定"><Text style={styles.gear}>⚙</Text></Pressable> }}
+        options={{
+          headerRight: () => (
+            <Pressable onPress={() => router.push('/settings')} accessibilityLabel="設定" style={styles.iconButton}>
+              <MaterialIcons name="settings" size={22} color={p.ink} />
+            </Pressable>
+          ),
+        }}
       />
-      <ScrollView scrollEnabled={!drag} contentContainerStyle={notes.length ? undefined : styles.emptyBox}>
+      <ScrollView scrollEnabled={!drag} contentContainerStyle={styles.list}>
+        <Text style={styles.meta}>
+          未完了 <Text style={styles.metaOpen}>{openCount}</Text> · 完了 {doneCount} · メモ {notes.length}
+        </Text>
         {notes.length ? null : <Text style={styles.empty}>メモはまだありません</Text>}
-        {notes.map((n, i) => (
-          <Animated.View
-            key={n.id}
-            onLayout={(e) => { rowH.current = e.nativeEvent.layout.height; }}
-            style={drag?.from === i ? { zIndex: 1, elevation: 4, transform: [{ translateY: dragY }] } : { transform: [{ translateY: shift(i) }] }}
-          >
-            <SwipeRow onDelete={() => remove(n)}>
-              <View style={styles.rowWrap}>
-                <Pressable style={styles.row} onPress={() => open(n.id)}>
-                  <Text style={styles.title} numberOfLines={1}>
-                    {n.pinned ? '📌 ' : ''}{n.title || n.body.split('\n')[0] || '無題のメモ'}
-                  </Text>
-                  <Text style={styles.sub} numberOfLines={1}>
-                    {n.conflict_of ? '⚠ 競合コピー　' : ''}{n.conflict_count ? `⚠ 競合あり（${n.conflict_count}件）　` : ''}
-                    {n.total_count ? `${n.total_count - n.open_count}/${n.total_count} 完了　` : ''}
-                    {n.title ? n.body.split('\n')[0] : ''}
-                  </Text>
-                </Pressable>
-                <DragHandle
-                  onStart={() => setDrag({ from: i, to: i })}
-                  onMove={(dy) => dragMove(i, dy)}
-                  onEnd={() => dragEnd(i)}
-                />
-              </View>
-            </SwipeRow>
-          </Animated.View>
-        ))}
+        {notes.map((n, i) => {
+          const done = n.total_count - n.open_count;
+          const more = n.open_count - n.preview.length;
+          const first = n.body.split('\n')[0];
+          return (
+            <Animated.View
+              key={n.id}
+              onLayout={(e) => { heights.current.set(n.id, e.nativeEvent.layout.height + space.m); }}
+              style={[styles.cell, drag?.from === i ? { zIndex: 1, elevation: 6, transform: [{ translateY: dragY }] } : { transform: [{ translateY: shift(i) }] }]}
+            >
+              <SwipeRow onDelete={() => remove(n)}>
+                <View style={styles.card}>
+                  <Pressable style={({ pressed }) => [styles.cardMain, pressed && styles.pressed]} onPress={() => open(n.id)}>
+                    <View style={styles.titleRow}>
+                      {n.pinned ? <MaterialIcons name="push-pin" size={16} color={p.yellowText} /> : null}
+                      <Text style={styles.title} numberOfLines={1}>{n.title || first || '無題のメモ'}</Text>
+                      {n.total_count ? <Text style={styles.count}>{done}/{n.total_count}</Text> : null}
+                    </View>
+                    {n.total_count ? (
+                      <View style={styles.bar}><View style={[styles.barFill, { width: `${(done / n.total_count) * 100}%` }]} /></View>
+                    ) : n.title ? (
+                      first ? <Text style={styles.excerpt} numberOfLines={2}>{n.body}</Text> : null
+                    ) : null}
+                  </Pressable>
+                  {n.preview.map((it) => (
+                    <Pressable key={it.id} style={styles.itemRow} onPress={() => check(it.id)} accessibilityLabel="完了にする">
+                      <View style={styles.box} />
+                      <Text style={styles.itemText} numberOfLines={1}>{it.text}</Text>
+                    </Pressable>
+                  ))}
+                  {n.total_count && !n.open_count ? (
+                    <View style={styles.allDone}>
+                      <MaterialIcons name="task-alt" size={16} color={p.accentText} />
+                      <Text style={styles.allDoneText}>すべて完了</Text>
+                    </View>
+                  ) : more > 0 || (n.preview.length && done) ? (
+                    <Text style={styles.more}>{more > 0 ? `ほか ${more} 件` : ''}{more > 0 && done ? ' · ' : ''}{done ? `完了 ${done}` : ''}</Text>
+                  ) : null}
+                  {n.next_reminder || n.conflict_count || n.conflict_of || n.image_count ? (
+                    <View style={styles.chips}>
+                      {n.next_reminder ? <Chip icon="alarm" bg={p.reminderBg} fg={p.reminderFg} text={fmtWhen(n.next_reminder)} mono /> : null}
+                      {n.conflict_count ? <Chip icon="sync-problem" bg={p.dangerBg} fg={p.dangerFg} text={`競合 ${n.conflict_count}`} /> : null}
+                      {n.conflict_of ? <Chip icon="sync-problem" bg={p.dangerBg} fg={p.dangerFg} text="競合コピー" /> : null}
+                      {n.image_count ? <Chip icon="image" bg={p.chipBg} fg={p.chipFg} text={String(n.image_count)} /> : null}
+                    </View>
+                  ) : null}
+                  <View style={styles.handleSlot}>
+                    <DragHandle onStart={() => setDrag({ from: i, to: i })} onMove={(dy) => dragMove(i, dy)} onEnd={() => dragEnd(i)} />
+                  </View>
+                </View>
+              </SwipeRow>
+            </Animated.View>
+          );
+        })}
       </ScrollView>
       <Pressable style={styles.fab} onPress={() => open(createNote())} accessibilityLabel="新しいメモ">
-        <Text style={styles.fabText}>＋</Text>
+        <MaterialIcons name="add" size={28} color={p.onYellow} />
       </Pressable>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  emptyBox: { flex: 1, justifyContent: 'center' },
-  empty: { textAlign: 'center', color: '#888' },
-  swipeBox: { backgroundColor: '#d32f2f' },
-  swipeBack: { ...(StyleSheet.absoluteFill as object),justifyContent: 'center', alignItems: 'flex-end', paddingRight: 24 },
-  swipeText: { color: '#fff', fontWeight: '600' },
-  swipeFront: { backgroundColor: '#fff' },
-  rowWrap: { flexDirection: 'row', alignItems: 'center' },
-  handle: { paddingHorizontal: 16, alignSelf: 'stretch', justifyContent: 'center' },
-  handleText: { fontSize: 22, color: '#aaa' },
-  row: { flex: 1, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#ccc' },
-  title: { fontSize: 17, fontWeight: '600' },
-  sub: { fontSize: 13, color: '#777', marginTop: 2 },
-  gear: { fontSize: 22, paddingHorizontal: 4 },
-  fab: { position: 'absolute', right: 20, bottom: 28, width: 56, height: 56, borderRadius: 28, backgroundColor: '#2196f3', alignItems: 'center', justifyContent: 'center', elevation: 4 },
-  fabText: { color: '#fff', fontSize: 28, lineHeight: 32 },
-});
+function Chip({ icon, bg, fg, text, mono }: { icon: React.ComponentProps<typeof MaterialIcons>['name']; bg: string; fg: string; text: string; mono?: boolean }) {
+  const [, styles] = useThemed(makeStyles);
+  return (
+    <View style={[styles.chip, { backgroundColor: bg }]}>
+      <MaterialIcons name={icon} size={13} color={fg} />
+      <Text style={[styles.chipText, { color: fg }, mono && type.monoMeta]}>{text}</Text>
+    </View>
+  );
+}
+
+const makeStyles = (p: Palette) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: p.bg },
+    list: { paddingHorizontal: space.screen, paddingBottom: 110 },
+    meta: { ...type.monoMeta, color: p.inkFaint, paddingHorizontal: 6, paddingVertical: space.m },
+    metaOpen: { color: p.yellowText },
+    empty: { ...type.small, textAlign: 'center', color: p.inkMuted, marginTop: 80 },
+    cell: { marginBottom: space.m },
+    swipeBox: { backgroundColor: p.danger, borderRadius: radius.card, overflow: 'hidden' },
+    swipeBack: { ...(StyleSheet.absoluteFill as object), justifyContent: 'center', alignItems: 'flex-end', paddingRight: 24 },
+    swipeText: { color: p.onDanger, fontWeight: '600' },
+    swipeFront: { backgroundColor: p.bg },
+    card: { backgroundColor: p.surface, borderColor: p.border, borderWidth: 1, borderRadius: radius.card, paddingVertical: 12, paddingHorizontal: space.xxl },
+    cardMain: { gap: 8, paddingRight: 24 },
+    pressed: { opacity: 0.7 },
+    titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    title: { ...type.cardTitle, color: p.ink, flex: 1 },
+    count: { ...type.monoMeta, color: p.inkFaint },
+    bar: { height: size.progress, borderRadius: 2, backgroundColor: p.border, overflow: 'hidden' },
+    barFill: { height: size.progress, backgroundColor: p.accent },
+    excerpt: { ...type.small, lineHeight: 22, color: p.inkMuted },
+    itemRow: { flexDirection: 'row', alignItems: 'center', gap: 10, height: size.rowList },
+    box: { width: size.checkboxList, height: size.checkboxList, borderRadius: radius.checkboxSmall, borderWidth: 1.5, borderColor: p.checkboxBorder },
+    itemText: { ...type.item, color: p.ink, flex: 1 },
+    more: { ...type.caption, color: p.inkFaint, marginTop: 2 },
+    allDone: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+    allDoneText: { ...type.item, color: p.accentText },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+    chip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.chip, paddingHorizontal: 8, paddingVertical: 3 },
+    chipText: { ...type.caption },
+    handleSlot: { position: 'absolute', top: 4, right: 0 },
+    handle: { paddingHorizontal: 10, paddingVertical: 10 },
+    iconButton: { padding: 6 },
+    fab: { position: 'absolute', right: 16, bottom: 32, width: size.fab, height: size.fab, borderRadius: radius.fab, backgroundColor: p.yellow, alignItems: 'center', justifyContent: 'center', elevation: 6, shadowColor: p.shadow },
+  });

@@ -1,16 +1,17 @@
 "use no memo"; // ウィジェットの描画（renderWidget）に渡すコンポーネントを含むため、ChecklistWidget と同じ制約
-import { createElement } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { WidgetConfigurationScreenProps } from 'react-native-android-widget';
 import { listNotes, setWidgetNote, widgetNote } from '../db/queries';
-import { ChecklistWidget } from './ChecklistWidget';
+import { radius, type, useThemed, type Palette } from '../ui/theme';
+import { checklistWidget } from './ChecklistWidget';
 
 /** ウィジェットの追加時と、長押しの「設定」から開く。どのメモを表示するかを選ぶ */
 export function WidgetConfigScreen({ widgetInfo, renderWidget, setResult }: WidgetConfigurationScreenProps) {
+  const [, styles] = useThemed(makeStyles);
   const notes = listNotes().filter((n) => !n.conflict_of);
   const choose = (id: string | null) => {
     setWidgetNote(widgetInfo.widgetId, id);
-    renderWidget(createElement(ChecklistWidget, { note: widgetNote(widgetInfo.widgetId) }));
+    renderWidget(checklistWidget(widgetNote(widgetInfo.widgetId)));
     setResult('ok');
   };
   return (
@@ -32,11 +33,12 @@ export function WidgetConfigScreen({ widgetInfo, renderWidget, setResult }: Widg
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingTop: 48 },
-  heading: { fontSize: 18, fontWeight: '600', paddingHorizontal: 16, paddingBottom: 12 },
-  row: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#ccc' },
-  label: { fontSize: 16 },
-  cancel: { padding: 16, alignItems: 'center' },
-  cancelText: { color: '#2196f3', fontSize: 16 },
-});
+const makeStyles = (p: Palette) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: p.bg, paddingTop: 48 },
+    heading: { ...type.pageHeading, color: p.ink, paddingHorizontal: 20, paddingBottom: 12 },
+    row: { marginHorizontal: 12, marginBottom: 8, paddingHorizontal: 16, height: 50, justifyContent: 'center', backgroundColor: p.surface, borderColor: p.border, borderWidth: 1, borderRadius: radius.card },
+    label: { ...type.item, color: p.ink },
+    cancel: { padding: 16, alignItems: 'center' },
+    cancelText: { ...type.button, color: p.accentText },
+  });

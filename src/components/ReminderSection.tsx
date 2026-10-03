@@ -1,10 +1,12 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useCallback, useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { addReminder, deleteReminder, setReminderEnabled } from '../db/actions';
 import { listReminders, type ReminderView } from '../db/queries';
 import { ensureNotificationPermission } from '../notifications/reconcile';
 import { onLocalChange } from '../sync/auto';
+import { radius, space, type, useThemed, type Palette } from '../ui/theme';
 
 const REPEATS = [
   { label: 'なし', rrule: null },
@@ -38,6 +40,7 @@ function pickAndroid(value: Date, done: (d: Date) => void) {
 }
 
 export function ReminderSection({ noteId }: { noteId: string }) {
+  const [p, styles] = useThemed(makeStyles);
   const [items, setItems] = useState<ReminderView[]>(() => listReminders(noteId));
   const reload = useCallback(() => setItems(listReminders(noteId)), [noteId]);
   const [draft, setDraft] = useState<{ at: Date; rrule: string | null } | null>(null);
@@ -59,9 +62,9 @@ export function ReminderSection({ noteId }: { noteId: string }) {
       {items.map((r) => (
         <View key={r.id} style={styles.row}>
           <Text style={[styles.when, r.enabled ? null : styles.off]}>{fmt(new Date(r.fire_at))}　{repeatLabel(r.rrule)}</Text>
-          <Switch value={!!r.enabled} onValueChange={(v) => { setReminderEnabled(r.id, v); reload(); onLocalChange(); }} />
+          <Switch value={!!r.enabled} trackColor={{ true: p.accent, false: p.border }} thumbColor={p.ink} onValueChange={(v) => { setReminderEnabled(r.id, v); reload(); onLocalChange(); }} />
           <Pressable onPress={() => { deleteReminder(r.id); reload(); onLocalChange(); }} hitSlop={8} accessibilityLabel="リマインドを削除">
-            <Text style={styles.remove}>✕</Text>
+            <MaterialIcons name="close" size={18} color={p.inkDone} />
           </Pressable>
         </View>
       ))}
@@ -79,7 +82,7 @@ export function ReminderSection({ noteId }: { noteId: string }) {
           <View style={styles.chips}>
             {REPEATS.map((r) => (
               <Pressable key={r.label} style={[styles.chip, draft.rrule === r.rrule ? styles.chipOn : null]} onPress={() => setDraft({ ...draft, rrule: r.rrule })}>
-                <Text style={draft.rrule === r.rrule ? styles.chipOnText : null}>{r.label}</Text>
+                <Text style={[styles.chipText, draft.rrule === r.rrule ? styles.chipOnText : null]}>{r.label}</Text>
               </Pressable>
             ))}
           </View>
@@ -91,28 +94,30 @@ export function ReminderSection({ noteId }: { noteId: string }) {
         </View>
       ) : (
         <Pressable onPress={() => setDraft({ at: nextHour(), rrule: null })}>
-          <Text style={styles.add}>＋ リマインドを追加</Text>
+          <View style={styles.addRow}><MaterialIcons name="alarm-add" size={20} color={p.accentText} /><Text style={styles.add}>リマインドを追加</Text></View>
         </Pressable>
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  box: { marginTop: 24, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#ccc', gap: 8 },
-  heading: { fontSize: 15, fontWeight: '600', color: '#555' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  when: { flex: 1, fontSize: 16 },
-  off: { color: '#aaa' },
-  remove: { fontSize: 16, color: '#999', paddingHorizontal: 4 },
-  draft: { gap: 10 },
-  dateButton: { fontSize: 18, color: '#2196f3', paddingVertical: 6 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#eee' },
-  chipOn: { backgroundColor: '#2196f3' },
-  chipOnText: { color: '#fff' },
-  hint: { fontSize: 12, color: '#777' },
-  actions: { flexDirection: 'row', gap: 24 },
-  cancel: { fontSize: 16, color: '#777' },
-  add: { fontSize: 16, color: '#2196f3' },
-});
+const makeStyles = (p: Palette) =>
+  StyleSheet.create({
+    box: { backgroundColor: p.surface, borderColor: p.border, borderWidth: 1, borderRadius: radius.card, paddingVertical: 10, paddingHorizontal: space.cardPad, gap: 8 },
+    heading: { ...type.label, color: p.inkFaint },
+    row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    when: { ...type.monoMeta, fontSize: 14, color: p.reminderFg, flex: 1 },
+    off: { color: p.inkDone },
+    draft: { gap: 10 },
+    dateButton: { ...type.monoValue, color: p.reminderFg, paddingVertical: 6 },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.button, borderWidth: 1, borderColor: p.borderControl },
+    chipOn: { backgroundColor: p.accent, borderColor: p.accent },
+    chipText: { ...type.item, color: p.inkSub },
+    chipOnText: { color: p.onAccent },
+    hint: { ...type.caption, color: p.inkMuted },
+    actions: { flexDirection: 'row', gap: 24 },
+    cancel: { ...type.button, color: p.inkSub },
+    add: { ...type.item, fontWeight: '500', color: p.accentText },
+    addRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36 },
+  });
