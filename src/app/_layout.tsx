@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { reconcileReminders } from '../notifications/reconcile';
 import { registerBackgroundSync } from '../sync/background';
@@ -20,12 +21,16 @@ export default function RootLayout() {
     void registerBackgroundSync();
     return startAutoSync();
   }, []);
+  // 画面は白背景固定（ダークモード未対応）。端末がダークモードでも、時計などのアイコンが白背景に溶けないよう暗い色にする
   return (
-    <Stack>
+    <>
+      <StatusBar style="dark" />
+      <Stack>
       <Stack.Screen name="index" options={{ title: 'kakitome' }} />
       <Stack.Screen name="note/[id]" options={{ title: '' }} />
       <Stack.Screen name="conflict/[id]" options={{ title: '競合の解消' }} />
       <Stack.Screen name="settings" options={{ title: '設定' }} />
-    </Stack>
+      </Stack>
+    </>
   );
 }
