@@ -85,7 +85,9 @@ Expo を選んだ理由: 全要件が Expo のまま（Kotlin / Swift を書か�
 - **UIScene ライフサイクル**: iOS 27 は UIScene を採用していないアプリを起動時に落とす。Expo SDK 57 の `ExpoAppSceneDelegate` を使うよう、設定プラグイン `plugins/withIosScene.js` が prebuild で `AppDelegate`（`ExpoReactNativeFactoryProvider` に準拠、React Native の自前起動を削除）と `Info.plist`（`UIApplicationSceneManifest`）を書き換える。`ios/` は生成物なのでコミットしない
 - **Google サインイン**: iOS 用 OAuth クライアント ID（`src/sync/config.ts` の `IOS_CLIENT_ID`）が無いと設定自体が例外になるため、未設定の間は iOS ではサインインを利用不可として扱う（他の機能は動く）。iOS 用クライアント ID は `IOS_CLIENT_ID` に設定済みで、設定プラグインにも `iosUrlScheme`（クライアント ID から `.apps.googleusercontent.com` を除いたものの前に `com.googleusercontent.apps.` を付けた形）を指定している
 - **リマインド**: 繰り返しは OS のネイティブ繰り返し（カレンダー）トリガー。正確なアラームの許可は iOS には無い
-- **未確認**: iOS 実機・シミュレータでの各機能（編集・画像・リマインド・同期）の動作
+- **Google サインイン後の最初のトークン取得**: 起動直後は、前回のサインインがライブラリの「現在のユーザー」として復元されておらず `getTokens` が失敗することがある。失敗したら `signInSilently` で復元してから取り直す（iOS シミュレータで再現・解消を確認）
+- **検証（iOS 27 シミュレータ＋実 Drive）**: Google サインイン後、新しい端末として同期し、Android の端末と同じ内容（ノート 3・項目 5・画像 1・リマインド 2・op 36 件）が届く。サムネイルは先読みされ、本体は表示時に取得される
+- **未確認**: iOS での編集・画像追加・リマインド（通知の予約と発火）・全画面表示の画面操作。シミュレータの画面操作を自動化する手段が無く、手元での確認が要る
 
 ## 3. データモデル
 

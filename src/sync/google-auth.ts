@@ -22,7 +22,15 @@ export async function signIn(): Promise<boolean> {
 export const signOut = () => GoogleSignin.signOut();
 
 export async function getAccessToken(): Promise<string> {
-  return (await GoogleSignin.getTokens()).accessToken;
+  try {
+    return (await GoogleSignin.getTokens()).accessToken;
+  } catch {
+    // 起動直後は、前回のサインインがまだ現在のユーザーとして復元されていないことがある（特に iOS）。
+    // 無言で復元してから、もう一度取る
+    const r = await GoogleSignin.signInSilently();
+    if (r.type !== 'success') throw new Error('Google にサインインしていません');
+    return (await GoogleSignin.getTokens()).accessToken;
+  }
 }
 
 export const discardAccessToken = async (token: string) => {
