@@ -2,7 +2,7 @@ import type { ChangePage, DriveClient, DriveFile } from './drive';
 
 /** テスト用のインメモリ Drive。changes のトークンは変更ログの添字 */
 export class FakeDrive implements DriveClient {
-  files = new Map<string, { file: DriveFile; content: string }>();
+  files = new Map<string, { file: DriveFile; content: string | Uint8Array }>();
   log: string[] = [];
   /** 通信エラーを起こす残り回数（3 呼び出しに 1 回消費）。尽きれば以後は成功する */
   failBudget = 0;
@@ -25,6 +25,18 @@ export class FakeDrive implements DriveClient {
     this.log.push(file.id);
     return file;
   }
+  async createBlob(meta: { name: string; appProperties: Record<string, string> }, bytes: Uint8Array) {
+    this.maybeFail();
+    const file = { id: `f${++this.seq}`, ...meta };
+    this.files.set(file.id, { file, content: bytes });
+    this.log.push(file.id);
+    return file;
+  }
+  async downloadBytes(id: string) {
+    this.maybeFail();
+    this.downloads.push(id);
+    return this.files.get(id)!.content as Uint8Array;
+  }
   async getStartPageToken() {
     this.maybeFail();
     return String(this.log.length);
@@ -45,6 +57,6 @@ export class FakeDrive implements DriveClient {
   async download(id: string) {
     this.maybeFail();
     this.downloads.push(id);
-    return this.files.get(id)!.content;
+    return this.files.get(id)!.content as string;
   }
 }

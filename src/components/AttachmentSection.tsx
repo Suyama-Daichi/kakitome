@@ -6,6 +6,7 @@ import { addAttachment, deleteAttachment } from '../db/actions';
 import { subscribeDbChanges } from '../db/changes';
 import { listAttachments, type AttachmentView } from '../db/queries';
 import { blobFile } from '../media/blobs';
+import { ensureBody, type BodyResult } from '../media/body';
 import { importImage } from '../media/process';
 import { onLocalChange } from '../sync/auto';
 
@@ -16,6 +17,7 @@ export function AttachmentSection({ noteId }: { noteId: string }) {
   const [items, setItems] = useState<AttachmentView[]>(() => listAttachments(noteId));
   const [busy, setBusy] = useState(false);
   const [viewing, setViewing] = useState<AttachmentView | null>(null);
+  const [bodyState, setBodyState] = useState<BodyResult | 'loading'>('ready');
   const reload = useCallback(() => setItems(listAttachments(noteId)), [noteId]);
   useEffect(() => subscribeDbChanges(reload), [reload]);
 
@@ -36,6 +38,16 @@ export function AttachmentSection({ noteId }: { noteId: string }) {
 
   const fileUri = (hash: string) => blobFile(hash).uri;
 
+  // 本体が未取得なら、表示するときに取得する（Wi-Fi 限定設定に従う）
+  const open = async (a: AttachmentView) => {
+    setViewing(a);
+    if (a.has_body) return setBodyState('ready');
+    setBodyState('loading');
+    const r = await ensureBody(a.hash);
+    setBodyState(r);
+    if (r === 'ready') reload();
+  };
+
   return (
     <View style={styles.box}>
       <Text style={styles.heading}>画像</Text>
@@ -43,7 +55,7 @@ export function AttachmentSection({ noteId }: { noteId: string }) {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
           {items.map((a) => (
             <View key={a.id}>
-              <Pressable onPress={() => setViewing(a)} accessibilityLabel="画像を表示">
+              <Pressable onPress={() => void open(a)} accessibilityLabel="画像を表示">
                 {a.has_thumb ? (
                   <Image source={{ uri: fileUri(a.thumb_hash) }} style={styles.thumb} contentFit="cover" />
                 ) : (
@@ -67,9 +79,12 @@ export function AttachmentSection({ noteId }: { noteId: string }) {
           {viewing ? (
             viewing.has_body || viewing.has_thumb ? (
               <Image source={{ uri: fileUri(viewing.has_body ? viewing.hash : viewing.thumb_hash) }} style={styles.full} contentFit="contain" />
-            ) : (
-              <Text style={styles.placeholderText}>Wi-Fi 接続時に同期されます</Text>
-            )
+            ) : null
+          ) : null}
+          {viewing && !viewing.has_body ? (
+            <Text style={styles.viewerNote}>
+              {bodyState === 'loading' ? '画像を取得しています…' : bodyState === 'wifi' ? 'Wi-Fi 接続時に高画質の画像を同期します' : bodyState === 'unavailable' ? '画像はまだ同期されていません' : ''}
+            </Text>
           ) : null}
         </Pressable>
       </Modal>
@@ -89,4 +104,5 @@ const styles = StyleSheet.create({
   add: { fontSize: 16, color: '#2196f3' },
   viewer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' },
   full: { width: '100%', height: '100%' },
+  viewerNote: { position: 'absolute', bottom: 48, color: '#fff', fontSize: 13 },
 });

@@ -2,6 +2,8 @@ import { parseHlc } from '../core/hlc';
 import { mergeRemoteOps, type Ctx } from '../core/merge';
 import type { Op } from '../core/ops';
 import type { Store } from '../core/store';
+import { planUploads } from '../core/uploads';
+import { downloadBlob, uploadBlob, type BlobPort } from './blobs';
 import type { DriveClient, DriveFile } from './drive';
 
 export interface SyncStore extends Store {
@@ -46,11 +48,22 @@ export async function syncOnce(
   ctx: Ctx & { store: SyncStore },
   drive: DriveClient,
   tx: <T>(fn: () => T) => T = (fn) => fn(),
+  blobs?: BlobPort,
 ): Promise<void> {
   const { store } = ctx;
   const device = parseHlc(ctx.clock.last()).device;
 
-  const unsent = store.unsentOps();
+  // 画像の順序（設計 §7.3）: サムネイル → op → 本体。状態が変わるたびに計画し直す
+  const plan = async (allowBodies: boolean) =>
+    planUploads({
+      unsentOps: store.unsentOps(),
+      attachments: blobs ? blobs.attachments() : [],
+      blobs: blobs ? blobs.blobs() : new Map(),
+      allowBodies,
+    });
+  if (blobs) for (const h of (await plan(false)).thumbs) await uploadBlob(drive, blobs, h);
+
+  const unsent = (await plan(false)).ops;
   if (unsent.length) {
     const first = unsent[0].hlc;
     await drive.createFile(
@@ -63,6 +76,7 @@ export async function syncOnce(
   const ingest = async (files: (DriveFile | undefined)[]) => {
     for (const f of files) {
       const p = f?.appProperties;
+      if (f && blobs && p?.kind === 'blob' && p.hash) blobs.setRemote(p.hash, f.id);
       if (!f || p?.kind !== 'ops' || p.deviceId === device) continue; // 自端末のファイルは適用済み
       const ops = parseOps(await drive.download(f.id));
       tx(() => mergeRemoteOps(ctx, ops));
@@ -83,4 +97,11 @@ export async function syncOnce(
     store.setState('drive_page_token', token); // 処理後に進める（少なくとも1回は適用）
     if (!page.nextPageToken) break;
   }
+
+  if (!blobs) return;
+  // サムネイルは先読み。本体は遅延ダウンロード（表示時）。取得に失敗しても同期全体は止めない
+  for (const h of blobs.missingThumbs()) await downloadBlob(drive, blobs, h).catch(() => false);
+  // 本体のアップロードは最後（「Wi-Fi 接続時のみ」設定に従う）
+  const { bodies } = await plan(await blobs.allowBodies());
+  for (const h of bodies) await uploadBlob(drive, blobs, h);
 }

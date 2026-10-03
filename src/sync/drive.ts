@@ -17,6 +17,9 @@ export interface ChangePage {
 export interface DriveClient {
   /** 新規作成のみ。既存ファイルの上書きはしない（設計 §6.2: ファイルは不変） */
   createFile(meta: { name: string; appProperties: Record<string, string> }, content: string): Promise<DriveFile>;
+  /** 画像などのバイナリ。atomic にするため作成と本体を 1 リクエスト（multipart）で送る */
+  createBlob(meta: { name: string; appProperties: Record<string, string> }, bytes: Uint8Array): Promise<DriveFile>;
+  downloadBytes(fileId: string): Promise<Uint8Array>;
   getStartPageToken(): Promise<string>;
   /** 初回同期用。appDataFolder の全ファイル */
   listFiles(): Promise<DriveFile[]>;
@@ -60,6 +63,30 @@ export function createDriveClient(
         body,
       });
       return res.json();
+    },
+
+    async createBlob(meta, bytes) {
+      const enc = new TextEncoder();
+      const boundary = `kakitome_${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+      const head = enc.encode(
+        `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({ ...meta, parents: ['appDataFolder'] })}\r\n` +
+          `--${boundary}\r\nContent-Type: application/octet-stream\r\n\r\n`,
+      );
+      const tail = enc.encode(`\r\n--${boundary}--`);
+      const body = new Uint8Array(head.length + bytes.length + tail.length);
+      body.set(head, 0);
+      body.set(bytes, head.length);
+      body.set(tail, head.length + bytes.length);
+      const res = await call(`${UPLOAD}/files?${qs({ uploadType: 'multipart', fields: FILE_FIELDS })}`, {
+        method: 'POST',
+        headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+        body,
+      });
+      return res.json();
+    },
+
+    async downloadBytes(fileId) {
+      return new Uint8Array(await (await call(`${API}/files/${encodeURIComponent(fileId)}?alt=media`)).arrayBuffer());
     },
 
     async getStartPageToken() {

@@ -2,9 +2,10 @@ import Constants from 'expo-constants';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import * as BackgroundTask from 'expo-background-task';
 import { lastSyncAt, lastSyncError, unsentOpCount } from '../db/queries';
+import { isWifiOnly, setWifiOnly } from '../media/blob-port';
 import { rescheduleAllReminders } from '../notifications/reconcile';
 import { currentEmail, isSignedIn, signIn, signOut } from '../sync/google-auth';
 import { runSync } from '../sync/run';
@@ -14,11 +15,13 @@ export default function Settings() {
   const [signed, setSigned] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [wifiOnly, setWifiOnlyState] = useState(true);
   const [info, setInfo] = useState({ unsent: 0, last: null as string | null, error: null as string | null });
 
   const reload = useCallback(() => {
     setSigned(isSignedIn());
     setEmail(currentEmail());
+    setWifiOnlyState(isWifiOnly());
     setInfo({ unsent: unsentOpCount(), last: lastSyncAt(), error: lastSyncError() || null });
   }, []);
   useFocusEffect(reload);
@@ -66,6 +69,14 @@ export default function Settings() {
           <Text style={[styles.buttonText, styles.secondaryText]}>（開発用）バックグラウンド同期を実行</Text>
         </Pressable>
       ) : null}
+      <View style={styles.section}>
+        <Text style={styles.heading}>画像</Text>
+        <View style={styles.switchRow}>
+          <Text style={styles.switchLabel}>画像の本体は Wi-Fi 接続時のみ送受信する</Text>
+          <Switch value={wifiOnly} onValueChange={(v) => { setWifiOnly(v); setWifiOnlyState(v); }} />
+        </View>
+        <Text style={styles.note}>サムネイルとメモの内容は、モバイル回線でも同期されます。オフにすると、画像の本体もモバイル回線で送受信します。</Text>
+      </View>
       {Platform.OS === 'android' && Number(Platform.Version) >= 31 ? (
         <View style={styles.section}>
           <Text style={styles.heading}>リマインドの時刻</Text>
@@ -106,6 +117,8 @@ const styles = StyleSheet.create({
   secondaryText: { color: '#333' },
   error: { color: '#b3261e' },
   section: { gap: 12, marginTop: 16 },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  switchLabel: { flex: 1, fontSize: 15 },
   spinner: { marginTop: 8 },
   message: { marginTop: 8, color: '#444' },
 });
