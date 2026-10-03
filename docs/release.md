@@ -2,28 +2,26 @@
 
 > 開発者向けの手順書。GitHub Pages の公開対象からは外している（`docs/_config.yml` の `exclude`）。
 
-## 1. 署名とビルド
+## 1. 署名とビルド（EAS）
 
 - アプリ ID（Android）: `app.kakitome`。**ストアに出すと変更できない。**
-- アップロード鍵: `~/.kakitome/upload.keystore`（エイリアス `upload`）。パスワードは `~/.gradle/gradle.properties` の `KAKITOME_UPLOAD_*`。**この 2 つは必ずバックアップする**（失うとアップロード鍵のリセットを Google に依頼することになる）。リポジトリには入れない
-- アップロード鍵の SHA-1: `A1:36:47:3B:82:B4:B3:BD:EE:F1:74:92:9F:72:43:19:3B:B4:24:95`
-- ビルド: `npx expo prebuild --platform android` のあと、`cd android && ./gradlew :app:bundleRelease`。成果物は `android/app/build/outputs/bundle/release/app-release.aab`。`KAKITOME_UPLOAD_*` が無い環境では debug 署名になる（`plugins/withAndroidReleaseSigning.js`）
-- バージョン: `app.json` の `expo.version`（表示名）と `expo.android.versionCode`（アップロードごとに増やす）
-- 権限は必要最小限に絞ってある（`app.json` の `blockedPermissions`）。リリース APK の権限: INTERNET / SCHEDULE_EXACT_ALARM / VIBRATE / ACCESS_NETWORK_STATE / ACCESS_WIFI_STATE / RECEIVE_BOOT_COMPLETED / POST_NOTIFICATIONS / WAKE_LOCK
+- Expo のプロジェクト: `@donchan/kakitome`（`app.json` の `owner` と `extra.eas.projectId`）
+- 署名は EAS に任せる。初回の `eas build` で、EAS がアップロード鍵を作って管理する（手元に鍵ファイルは要らない）。**最初の 1 回は対話が必要**なので、手元のターミナルで実行する
+- 構築: `eas build -p android --profile production`（AAB が出る）。バージョン番号（`versionCode`）は EAS が自動で増やす（`eas.json` の `appVersionSource: remote` と `autoIncrement`）。表示用のバージョンは `app.json` の `expo.version`
+- アップロード鍵の SHA-1: `eas credentials -p android` で確認する（Google Cloud の OAuth に使う。下の 2 章）
+- 権限は必要最小限に絞ってある（`app.json` の `blockedPermissions`）。リリースの権限: INTERNET / SCHEDULE_EXACT_ALARM / VIBRATE / ACCESS_NETWORK_STATE / ACCESS_WIFI_STATE / RECEIVE_BOOT_COMPLETED / POST_NOTIFICATIONS / WAKE_LOCK
+- ローカルのリリースビルド（動作確認用）は、署名が debug になる。Play への提出には使わない
 
-## 1b. EAS で構築・提出する場合
+### 提出（`eas submit`）
 
-- `eas.json` に production プロファイル（AAB、`autoIncrement`、提出先は内部テストの下書き）を用意してある。`appVersionSource: remote` のため、`versionCode` は EAS が管理する（EAS ビルドでは `app.json` の `versionCode` は使われない）
-- 初回だけ必要: プロジェクトの所有者（Expo のアカウント／組織）を決めて `eas init`（`extra.eas.projectId` が `app.json` に入る）
-- 署名の持ち方は 2 通り。どちらでも Play のアプリ署名に登録する鍵は「アップロード鍵」
-  - EAS に任せる（推奨）: 初回の `eas build -p android --profile production` で EAS が鍵を作って管理する。SHA-1 は `eas credentials` で見られる
-  - 手元の鍵を使う: `~/.kakitome/upload.keystore` を EAS に登録する（鍵が Expo のサーバーに渡る）
-- 提出（`eas submit -p android --profile production`）の前提: Play Console でアプリを**手動で作成**しておく、Google サービスアカウントの鍵を EAS に登録する、提出できるのは AAB のみ。提出後、ストア掲載などを終えるまでは下書きのまま
+- 前提: Play Console でアプリを**手動で作成**してある、Google サービスアカウントの鍵を EAS に登録してある（`eas credentials` か Expo のダッシュボード）
+- 実行: `eas submit -p android --profile production`。内部テストの下書きとして提出される（`eas.json`）。提出できるのは AAB のみ
+- 提出後は、ストア掲載などを終えるまで下書きのまま
 
 ## 2. Google Cloud（OAuth）
 
 1. 「Android」の OAuth クライアントに、SHA-1 を**追加**する（既存のデバッグ用 SHA-1 は消さない）
-   - アップロード鍵: 上の SHA-1（ローカルのリリースビルド用）
+   - アップロード鍵: `eas credentials -p android` で表示される SHA-1（EAS が作った鍵。EAS の production ビルドを手元の端末に直接入れて試すときに使う）
    - **Play アプリ署名の鍵**: Play Console →「アプリの完全性」→「アプリ署名」に表示される SHA-1（Play 経由でインストールされたアプリが使う。初回アップロード後に表示される）
 2. 「Google Auth Platform」→「対象」で、公開ステータスを「テスト」から「本番」へ。要求するスコープは `drive.appdata`（非センシティブ）と基本情報のみ
 3. 「ブランディング」: アプリ名、サポートメール、アプリのホームページ（`https://suyama-daichi.github.io/kakitome/`）、プライバシーポリシー（`.../privacy`）

@@ -19,7 +19,8 @@
       "predictiveBackGestureEnabled": false,
       "package": "app.kakitome",
       "permissions": [
-        "android.permission.SCHEDULE_EXACT_ALARM"
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.RECORD_AUDIO"
       ],
       "versionCode": 1,
       "blockedPermissions": [
@@ -73,12 +74,18 @@
         {
           "iosUrlScheme": "com.googleusercontent.apps.196889256232-0r0vqbt26up91kaj7ktlne3of3n4i8nc"
         }
-      ],
-      "./plugins/withAndroidReleaseSigning"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "owner": "donchan",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e5c13dfe-1ead-4491-949b-702eac257bd2"
+      }
     }
   }
 }
