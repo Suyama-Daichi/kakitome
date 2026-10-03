@@ -1,0 +1,6 @@
+title: kakitome
+theme: jekyll-theme-minimal
+# design.md は開発者向けの設計書。公開ページには出さない
+exclude:
+  - design.md
+  - release.md
