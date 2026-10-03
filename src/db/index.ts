@@ -40,7 +40,7 @@ function persistentClock(db: SQLiteDatabase): Clock {
 /** 同期コアを呼ぶための Ctx。変更は必ず tx 内で行う */
 export function openCore() {
   const d = getDb();
-  const ctx: Ctx = {
+  const ctx: Ctx & { store: SqliteStore } = {
     store: new SqliteStore(d),
     clock: persistentClock(d),
     newId: () => uuidv7({ random: Crypto.getRandomBytes(16) }),

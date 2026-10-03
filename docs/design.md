@@ -303,10 +303,12 @@ appDataFolder/
 
 実装上の取り決め（`src/sync/`）:
 
-- 初回（ページトークン無し）は、先に `changes.getStartPageToken` でトークンを取り、その後 `files.list(spaces=appDataFolder)` で全件を読む。間に増えたファイルは次の `changes.list` で拾う。`getStartPageToken` に `spaces` パラメータは無く、得たトークンを `changes.list(spaces=appDataFolder)` に渡す（実トークンでの動作は Drive 実機検証で確認する）
+- 初回（ページトークン無し）は、先に `changes.getStartPageToken` でトークンを取り、その後 `files.list(spaces=appDataFolder)` で全件を読む。間に増えたファイルは次の `changes.list` で拾う。`getStartPageToken` に `spaces` パラメータは無く、得たトークンを `changes.list(spaces=appDataFolder)` に渡す（Android エミュレータ＋実 Google アカウントで、初回の全件取得・新端末への復元・増分取得でトークンが進むことを確認済み）
 - ページトークンは、そのページのファイルを適用した後で保存する（少なくとも1回は適用。重複は §4.3 の冪等性で吸収）
 - 自端末が作ったファイルは取得しない。受信しただけの op は再送しない（`ops.uploaded = 1` で受信）
 - 受信した op は形を検証し、壊れた行・不正な op・プリミティブ以外のフィールド値は捨てる（1ファイルの破損で同期全体が止まらないようにする）
+- サインインは `@react-native-google-signin/google-signin`（`webClientId` と `drive.appdata` を指定）。ライブラリが既定で要求する名前・メールアドレス（基本プロフィール）の許可も同意画面に出るが、Drive のスコープは `drive.appdata` のみ。Android は パッケージ名＋署名 SHA-1 の OAuth クライアントで照合される
+- OAuth 同意画面が「テスト」状態の間は、テストユーザーに登録した Google アカウントしかサインインできない（403 access_denied）。公開時は本番公開の手続きが必要（`drive.appdata` は非センシティブスコープ）
 - Drive クライアントは `fetch` とトークン取得関数を注入する。テストはインメモリの `FakeDrive` で行う
 
 ### 6.4 圧縮

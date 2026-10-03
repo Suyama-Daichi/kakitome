@@ -1,4 +1,4 @@
-import { router, useFocusEffect } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { createNote } from '../db/actions';
@@ -12,6 +12,9 @@ export default function NoteList() {
 
   return (
     <View style={styles.container}>
+      <Stack.Screen
+        options={{ headerRight: () => <Pressable onPress={() => router.push('/settings')} accessibilityLabel="設定"><Text style={styles.gear}>⚙</Text></Pressable> }}
+      />
       <FlatList
         data={notes}
         keyExtractor={(n) => n.id}
@@ -44,6 +47,7 @@ const styles = StyleSheet.create({
   row: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#ccc' },
   title: { fontSize: 17, fontWeight: '600' },
   sub: { fontSize: 13, color: '#777', marginTop: 2 },
+  gear: { fontSize: 22, paddingHorizontal: 4 },
   fab: { position: 'absolute', right: 20, bottom: 28, width: 56, height: 56, borderRadius: 28, backgroundColor: '#2196f3', alignItems: 'center', justifyContent: 'center', elevation: 4 },
   fabText: { color: '#fff', fontSize: 28, lineHeight: 32 },
 });

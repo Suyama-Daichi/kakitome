@@ -52,3 +52,6 @@ export const minNoteKey = () =>
   getDb().getFirstSync<{ k: string | null }>("SELECT MIN(sort_key) AS k FROM notes WHERE sort_key != ''")?.k ?? null;
 export const maxItemKey = (noteId: string) =>
   getDb().getFirstSync<{ k: string | null }>("SELECT MAX(sort_key) AS k FROM checklist_items WHERE note_id = ? AND sort_key != ''", noteId)?.k ?? null;
+
+export const unsentOpCount = () => getDb().getFirstSync<{ n: number }>('SELECT COUNT(*) AS n FROM ops WHERE uploaded = 0')?.n ?? 0;
+export const lastSyncAt = () => getDb().getFirstSync<{ value: string }>("SELECT value FROM sync_state WHERE key = 'last_sync_at'")?.value ?? null;
