@@ -8,7 +8,10 @@
     "scheme": "kakitome",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "app.kakitome"
+      "bundleIdentifier": "app.kakitome",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
