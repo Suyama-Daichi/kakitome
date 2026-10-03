@@ -1,41 +1,49 @@
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Button, Pressable, StyleSheet, Text, View } from 'react-native';
-import { requestWidgetUpdate } from 'react-native-android-widget';
-import { useFocusEffect } from 'expo-router';
-import { seedDemo, toggleItem } from '../db/actions';
-import { firstNoteWithItems, type NoteView } from '../db/queries';
-import { ChecklistWidget } from '../widget/ChecklistWidget';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { createNote } from '../db/actions';
+import { listNotes, type NoteRow } from '../db/queries';
 
-// PoC 画面。本格的な UI はロードマップ5
-export default function Index() {
-  const [note, setNote] = useState<NoteView | undefined>();
-  const reload = useCallback(() => setNote(firstNoteWithItems()), []);
-  useFocusEffect(reload);
+export default function NoteList() {
+  const [notes, setNotes] = useState<NoteRow[]>([]);
+  useFocusEffect(useCallback(() => setNotes(listNotes()), []));
 
-  const refreshWidget = () =>
-    requestWidgetUpdate({
-      widgetName: 'Checklist',
-      renderWidget: () => <ChecklistWidget note={firstNoteWithItems()} />,
-      widgetNotFound: () => {},
-    });
+  const open = (id: string) => router.push({ pathname: '/note/[id]', params: { id } });
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{note?.title ?? 'メモがありません'}</Text>
-      {note?.items.map((it) => (
-        <Pressable key={it.id} onPress={() => { toggleItem(it.id); reload(); refreshWidget(); }}>
-          <Text style={[styles.item, it.checked ? styles.done : null]}>{it.checked ? '☑' : '☐'} {it.text}</Text>
-        </Pressable>
-      ))}
-      <Button title="デモデータを投入" onPress={() => { seedDemo(); reload(); refreshWidget(); }} />
-      <Button title="再読込" onPress={() => { reload(); refreshWidget(); }} />
+      <FlatList
+        data={notes}
+        keyExtractor={(n) => n.id}
+        contentContainerStyle={notes.length ? undefined : styles.emptyBox}
+        ListEmptyComponent={<Text style={styles.empty}>メモはまだありません</Text>}
+        renderItem={({ item: n }) => (
+          <Pressable style={styles.row} onPress={() => open(n.id)}>
+            <Text style={styles.title} numberOfLines={1}>
+              {n.pinned ? '📌 ' : ''}{n.title || n.body.split('\n')[0] || '無題のメモ'}
+            </Text>
+            <Text style={styles.sub} numberOfLines={1}>
+              {n.conflict_of ? '⚠ 競合コピー　' : ''}
+              {n.total_count ? `${n.total_count - n.open_count}/${n.total_count} 完了　` : ''}
+              {n.title ? n.body.split('\n')[0] : ''}
+            </Text>
+          </Pressable>
+        )}
+      />
+      <Pressable style={styles.fab} onPress={() => open(createNote())} accessibilityLabel="新しいメモ">
+        <Text style={styles.fabText}>＋</Text>
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, gap: 8 },
-  title: { fontSize: 20, fontWeight: 'bold' },
-  item: { fontSize: 18, paddingVertical: 6 },
-  done: { color: '#999' },
+  container: { flex: 1, backgroundColor: '#fff' },
+  emptyBox: { flex: 1, justifyContent: 'center' },
+  empty: { textAlign: 'center', color: '#888' },
+  row: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#ccc' },
+  title: { fontSize: 17, fontWeight: '600' },
+  sub: { fontSize: 13, color: '#777', marginTop: 2 },
+  fab: { position: 'absolute', right: 20, bottom: 28, width: 56, height: 56, borderRadius: 28, backgroundColor: '#2196f3', alignItems: 'center', justifyContent: 'center', elevation: 4 },
+  fabText: { color: '#fff', fontSize: 28, lineHeight: 32 },
 });
