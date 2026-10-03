@@ -110,7 +110,7 @@ export default function Settings() {
           </Pressable>
         </View>
       ) : null}
-      {__DEV__ && signed ? <DevTools run={run} busy={busy} /> : null}
+      {__DEV__ ? <DevTools run={run} busy={busy} signed={signed} /> : null}
       {busy ? <ActivityIndicator style={styles.spinner} /> : null}
       {message ? <Text style={styles.message}>{message}</Text> : null}
     </ScrollView>

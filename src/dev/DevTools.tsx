@@ -1,6 +1,7 @@
 // 開発ビルド専用の操作（本番の設定画面には出ない）。設定画面からは __DEV__ のときだけ読み込む
 import * as BackgroundTask from 'expo-background-task';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { keyBetween } from '../core/fractional';
 import { applyLocalOp } from '../core/merge';
 import { getDb, openCore } from '../db';
 import { createBlobPort } from '../media/blob-port';
@@ -51,6 +52,43 @@ async function devSeedConflict(): Promise<string> {
   return '競合を仕込みました。同期後、メモの上部に競合バナーが出ます';
 }
 
+/**
+ * 開発用: ストア掲載のスクリーンショット用のデモデータ。通常の編集（applyLocalOp）として作る。
+ * 一覧の先頭（= ウィジェットに表示されるメモ）は「買い物」になる
+ */
+async function devSeedDemo(): Promise<string> {
+  const { ctx, tx } = openCore();
+  const now = new Date().toISOString();
+  const demo: { title: string; body: string; items: [string, number][]; remind?: boolean }[] = [
+    { title: '買い物', body: '週末のまとめ買い', remind: true, items: [['牛乳', 1], ['卵', 0], ['パン', 0], ['トマト', 0], ['洗剤', 0], ['バナナ', 1]] },
+    { title: '旅行の持ち物', body: '', items: [['パスポート', 1], ['充電器', 0], ['日焼け止め', 0], ['折りたたみ傘', 0]] },
+    { title: '今日やること', body: '', items: [['メールの返信', 1], ['資料を印刷', 0], ['電球を買う', 0]] },
+  ];
+  tx(() => {
+    let noteKey: string | null = null;
+    for (const n of demo) {
+      noteKey = keyBetween(noteKey, null);
+      const noteId = ctx.newId();
+      applyLocalOp(ctx, 'note', noteId, { title: n.title, body: n.body, pinned: 0, sort_key: noteKey, deleted: 0, created_at: now });
+      let itemKey: string | null = null;
+      for (const [text, checked] of n.items) {
+        itemKey = keyBetween(itemKey, null);
+        applyLocalOp(ctx, 'checklist_item', ctx.newId(), { note_id: noteId, text, checked, sort_key: itemKey, deleted: 0, created_at: now });
+      }
+      if (n.remind) {
+        const at = new Date();
+        at.setDate(at.getDate() + 1);
+        at.setHours(18, 0, 0, 0);
+        applyLocalOp(ctx, 'reminder', ctx.newId(), {
+          note_id: noteId, fire_at: at.toISOString(), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+          rrule: 'FREQ=DAILY', enabled: 1, deleted: 0,
+        });
+      }
+    }
+  });
+  return 'デモデータを投入しました';
+}
+
 type Run = <T>(fn: () => Promise<T>, ok: string | ((r: T) => string)) => Promise<void>;
 
 function Button({ label, onPress, busy }: { label: string; onPress: () => void; busy: boolean }) {
@@ -61,16 +99,18 @@ function Button({ label, onPress, busy }: { label: string; onPress: () => void; 
   );
 }
 
-export function DevTools({ run, busy }: { run: Run; busy: boolean }) {
+/** signed=false のときは、Google ドライブが要る操作を押せなくする */
+export function DevTools({ run, busy, signed }: { run: Run; busy: boolean; signed: boolean }) {
   return (
     <View style={styles.box}>
       <Text style={styles.heading}>（開発用）</Text>
-      <Button busy={busy} label="バックグラウンド同期を実行" onPress={() => run(() => BackgroundTask.triggerTaskWorkerForTestingAsync(), 'バックグラウンド同期を実行しました')} />
-      <Button busy={busy} label="猶予なしで不要な画像を整理" onPress={() => run(() => collectGarbage(makeDrive(), createBlobPort(), { graceMs: 0, force: true }), '整理しました')} />
-      <Button busy={busy} label="今すぐ圧縮して同期" onPress={() => run(async () => { await runSync({ compactMinFiles: 1 }); return driveBreakdown(); }, (r) => r)} />
-      <Button busy={busy} label="Drive 上の自端末ファイルを削除" onPress={() => run(devDeleteOwnFiles, (n) => `自端末のファイルを ${n} 件削除しました`)} />
-      <Button busy={busy} label="競合を仕込む" onPress={() => run(devSeedConflict, (r) => r)} />
-      <Button busy={busy} label="Drive のファイル内訳を表示" onPress={() => run(driveBreakdown, (r) => r)} />
+      <Button busy={busy || !signed} label="バックグラウンド同期を実行" onPress={() => run(() => BackgroundTask.triggerTaskWorkerForTestingAsync(), 'バックグラウンド同期を実行しました')} />
+      <Button busy={busy || !signed} label="猶予なしで不要な画像を整理" onPress={() => run(() => collectGarbage(makeDrive(), createBlobPort(), { graceMs: 0, force: true }), '整理しました')} />
+      <Button busy={busy || !signed} label="今すぐ圧縮して同期" onPress={() => run(async () => { await runSync({ compactMinFiles: 1 }); return driveBreakdown(); }, (r) => r)} />
+      <Button busy={busy || !signed} label="Drive 上の自端末ファイルを削除" onPress={() => run(devDeleteOwnFiles, (n) => `自端末のファイルを ${n} 件削除しました`)} />
+      <Button busy={busy} label="デモデータを投入（スクリーンショット用）" onPress={() => run(devSeedDemo, (r) => r)} />
+      <Button busy={busy || !signed} label="競合を仕込む" onPress={() => run(devSeedConflict, (r) => r)} />
+      <Button busy={busy || !signed} label="Drive のファイル内訳を表示" onPress={() => run(driveBreakdown, (r) => r)} />
     </View>
   );
 }
