@@ -15,6 +15,7 @@
 ### 提出（`eas submit`）
 
 - 前提: Play Console でアプリを**手動で作成**してある、Google サービスアカウントの鍵を EAS に登録してある（`eas credentials` か Expo のダッシュボード）
+- サービスアカウントは設定済み（2026-10-04）。鍵（JSON）は EAS のサーバーに登録してあり、リポジトリには置かない。初回の登録は対話のみで、`--non-interactive` では設定できない
 - 実行: `eas submit -p android --profile production`。内部テストの下書きとして提出される（`eas.json`）。提出できるのは AAB のみ
 - 提出後は、ストア掲載などを終えるまで下書きのまま
 
