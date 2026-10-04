@@ -1,8 +1,10 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Switch, Text, View } from 'react-native';
 import { importKeep, type KeepImportResult } from '../import/keep-import.web';
 import { onLocalChange } from '../sync/auto';
-import { radius, space, type, useThemed, type Palette } from '../ui/theme';
+import { Group, Row } from './SettingsRow';
+import { space, type, useThemed, type Palette } from '../ui/theme';
 
 function summary(r: KeepImportResult) {
   const s = r.skipped;
@@ -38,15 +40,23 @@ export function KeepImport() {
   };
 
   return (
-    <View style={styles.section}>
-      <Text style={styles.heading}>Google Keep から取り込む</Text>
-      <Text style={styles.note}>
-        Google Takeout で書き出した Keep の ZIP（または、展開した JSON と画像）を選んでください。ゴミ箱のメモは取り込みません。ラベルは本文の末尾に書き足します。同じ ZIP をもう一度選んでも、取り込み済みのメモは重複しません。
-      </Text>
-      <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>アーカイブしたメモは取り込まない</Text>
-        <Switch value={skipArchived} trackColor={{ true: p.accent, false: p.border }} thumbColor={p.ink} onValueChange={setSkipArchived} />
-      </View>
+    <View>
+      <Group>
+        <Row
+          icon="move-to-inbox"
+          title="Google Keep から取り込む"
+          sub="Takeout の ZIP か JSON を選ぶ（取り込み済みは重複しない）"
+          onPress={() => input.current?.click()}
+          disabled={!!progress}
+          right={progress ? <ActivityIndicator color={p.accent} /> : <MaterialIcons name="chevron-right" size={22} color={p.inkFaint} />}
+        />
+        <Row
+          icon="archive"
+          title="アーカイブしたメモは取り込まない"
+          onPress={() => setSkipArchived(!skipArchived)}
+          right={<Switch value={skipArchived} pointerEvents="none" trackColor={{ true: p.accent, false: p.border }} thumbColor={p.ink} onValueChange={setSkipArchived} />}
+        />
+      </Group>
       <input
         ref={input}
         type="file"
@@ -59,15 +69,7 @@ export function KeepImport() {
           if (files.length) void run(files);
         }}
       />
-      <Pressable style={[styles.button, styles.secondary]} disabled={!!progress} onPress={() => input.current?.click()}>
-        <Text style={[styles.buttonText, styles.secondaryText]}>ファイルを選んで取り込む</Text>
-      </Pressable>
-      {progress ? (
-        <View style={styles.progress}>
-          <ActivityIndicator color={p.accent} />
-          <Text style={styles.status}>{progress[1] ? `取り込み中… ${progress[0]} / ${progress[1]}` : 'ファイルを読んでいます…'}</Text>
-        </View>
-      ) : null}
+      {progress ? <Text style={styles.status}>{progress[1] ? `取り込み中… ${progress[0]} / ${progress[1]}` : 'ファイルを読んでいます…'}</Text> : null}
       {message ? <Text style={styles.status}>{message}</Text> : null}
     </View>
   );
@@ -75,15 +77,5 @@ export function KeepImport() {
 
 const makeStyles = (p: Palette) =>
   StyleSheet.create({
-    section: { gap: 10, marginTop: 8 },
-    heading: { ...type.label, color: p.inkFaint, paddingHorizontal: 6 },
-    note: { ...type.caption, color: p.inkMuted, paddingHorizontal: 6 },
-    status: { ...type.small, color: p.ink, paddingHorizontal: 6 },
-    button: { borderRadius: radius.button, height: 44, alignItems: 'center', justifyContent: 'center' },
-    buttonText: { ...type.button },
-    secondary: { borderWidth: 1, borderColor: p.borderControl },
-    secondaryText: { color: p.inkSub },
-    switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 6 },
-    switchLabel: { ...type.small, color: p.ink, flex: 1 },
-    progress: { flexDirection: 'row', alignItems: 'center', gap: space.m },
+    status: { ...type.small, color: p.ink, paddingHorizontal: space.s, paddingVertical: space.m },
   });

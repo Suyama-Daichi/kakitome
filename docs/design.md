@@ -83,6 +83,7 @@ Expo を選んだ理由: 全要件が Expo のまま（Kotlin / Swift を書か�
 
 - 依存は、使うものだけにする。`create-expo-app` のテンプレートが入れる `expo-font` `expo-device` `expo-symbols` `expo-glass-effect` `expo-web-browser` `expo-status-bar` `@expo/ui` `react-native-reanimated` `react-native-worklets` `react-native-gesture-handler` は削除済み（`react-native-web` `react-dom` は Web 対応のため再度追加した）。`expo-linking` `expo-constants` `react-native-safe-area-context` `react-native-screens` は `expo-router` の必須 peer
 - 開発ビルド専用の操作（競合の再現、圧縮の強制、Drive 上のファイル削除など）は `src/dev/DevTools.tsx` にまとめ、設定画面は `__DEV__` のときだけ読み込む
+- 設定画面の見た目（デザイン案 9b）: 上に同期の状態パネル（同期オフ・要サインイン・同期済み・未送信あり・同期中・同期エラーの 6 状態）、下はカードを使わないアイコン付きの行。「すべてのメモを削除」は下からのシート、結果のメッセージはトースト（`showToast`）で出す。フォントは端末のもの（`monospace`）で代用し、依存は増やさない。行の部品は `src/components/SettingsRow.tsx`。ヘッダーはネイティブのまま（他の画面と合わせて刷新するときに変える）
 
 ### 2.3 iOS 対応の取り決め
 
