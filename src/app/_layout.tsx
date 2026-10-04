@@ -11,6 +11,9 @@ import { ToastHost } from '../ui/toast';
 import { usePalette } from '../ui/theme';
 import { applyThemeMode, getThemeMode } from '../ui/theme-mode';
 
+// 描画中の例外で画面が真っ白にならないよう、エラーの内容と「再試行」を出す
+export { ErrorBoundary } from 'expo-router';
+
 export default function RootLayout() {
   return useDbReady() ? <App /> : null;
 }
