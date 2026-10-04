@@ -208,6 +208,9 @@ export default function Settings() {
         <Pressable onPress={() => void Linking.openURL('https://kakitome.d0nchan.com/privacy')}>
           <Text style={styles.privacy}>プライバシーポリシー</Text>
         </Pressable>
+        <Pressable onPress={() => void Linking.openURL('https://kakitome.d0nchan.com/licenses')}>
+          <Text style={styles.privacy}>オープンソースライセンス</Text>
+        </Pressable>
       </View>
 
       <Modal visible={deleteCount !== null} transparent animationType="slide" onRequestClose={() => setDeleteCount(null)}>
