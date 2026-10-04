@@ -346,7 +346,10 @@ function ImageStrip({ noteId }: { noteId: string }) {
   if (!imgs.length) return <Text style={styles.excerpt}>画像はありません</Text>;
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
-      {imgs.map((a) => <BlobImage key={a.id} hash={a.thumb_hash} style={styles.stripImg} contentFit="cover" />)}
+      {imgs.map((a) =>
+        // サムネイルは同期の最後に届くので、実体が届くまでは枠だけ出す（BlobImage は hash が同じだと読み直さないため、届いたら作り直させる）
+        a.has_thumb ? <BlobImage key={a.id} hash={a.thumb_hash} style={styles.stripImg} contentFit="cover" /> : <View key={a.id} style={[styles.stripImg, styles.stripEmpty]} />,
+      )}
     </ScrollView>
   );
 }
@@ -405,6 +408,7 @@ const makeStyles = (p: Palette) =>
     menuHead: { ...type.caption, color: p.inkFaint, paddingHorizontal: 16, paddingVertical: 8 },
     strip: { gap: 8 },
     stripImg: { width: 88, height: 88, borderRadius: 8 },
+    stripEmpty: { backgroundColor: p.border },
     menu: { position: 'absolute', right: space.screen, minWidth: 200, backgroundColor: p.surface, borderColor: p.border, borderWidth: 1, borderRadius: radius.card, paddingVertical: 6, elevation: 6 },
     menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 12, paddingHorizontal: 16 },
     menuText: { ...type.item, color: p.ink },
