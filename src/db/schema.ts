@@ -44,6 +44,10 @@ CREATE TABLE IF NOT EXISTS attachments (
   deleted INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT ''
 );
+CREATE INDEX IF NOT EXISTS checklist_items_note ON checklist_items(note_id);
+CREATE INDEX IF NOT EXISTS reminders_note ON reminders(note_id);
+CREATE INDEX IF NOT EXISTS attachments_note ON attachments(note_id);
+CREATE INDEX IF NOT EXISTS notes_conflict_of ON notes(conflict_of);
 CREATE TABLE IF NOT EXISTS field_clocks (
   entity TEXT NOT NULL,
   entity_id TEXT NOT NULL,

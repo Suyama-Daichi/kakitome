@@ -2,7 +2,8 @@
 // ponytail: 4GB 超（ZIP64）・暗号化には未対応。必要になったら fflate などを入れる
 export interface ZipEntry {
   name: string;
-  bytes(): Promise<Uint8Array>;
+  /** 中身。大きな画像でメモリを使い切らないよう、ArrayBuffer ではなく Blob（ブラウザが管理する領域）で返す */
+  blob(): Promise<Blob>;
 }
 
 export async function readZip(file: Blob): Promise<ZipEntry[]> {
@@ -15,6 +16,7 @@ export async function readZip(file: Blob): Promise<ZipEntry[]> {
   const cdOffset = tail.getUint32(e + 16, true);
   if (count === 0xffff || cdOffset === 0xffffffff) throw new Error('4GB を超える ZIP には未対応です');
 
+  if (cdSize > 64 * 1024 * 1024) throw new Error('ZIP の構造が想定と違います');
   const cd = new DataView(await file.slice(cdOffset, cdOffset + cdSize).arrayBuffer());
   const utf8 = new TextDecoder();
   const entries: ZipEntry[] = [];
@@ -30,13 +32,13 @@ export async function readZip(file: Blob): Promise<ZipEntry[]> {
     if (name.endsWith('/')) continue;
     entries.push({
       name,
-      bytes: async () => {
+      blob: async () => {
         const h = new DataView(await file.slice(offset, offset + 30).arrayBuffer());
         const start = offset + 30 + h.getUint16(26, true) + h.getUint16(28, true);
         const raw = file.slice(start, start + compressed);
-        if (method === 0) return new Uint8Array(await raw.arrayBuffer());
+        if (method === 0) return raw;
         if (method !== 8) throw new Error(`未対応の圧縮方式です（${method}）`);
-        return new Uint8Array(await new Response(raw.stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+        return new Response(raw.stream().pipeThrough(new DecompressionStream('deflate-raw'))).blob();
       },
     });
   }

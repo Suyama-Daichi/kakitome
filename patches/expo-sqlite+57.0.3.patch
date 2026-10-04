@@ -1,8 +1,22 @@
 diff --git a/node_modules/expo-sqlite/web/WorkerChannel.ts b/node_modules/expo-sqlite/web/WorkerChannel.ts
-index 7fba380..ef21af0 100644
+index 7fba380..ef3166b 100644
 --- a/node_modules/expo-sqlite/web/WorkerChannel.ts
 +++ b/node_modules/expo-sqlite/web/WorkerChannel.ts
-@@ -40,7 +40,7 @@ export function sendWorkerResult({
+@@ -14,7 +14,13 @@ const deferredMap = new Map<number, Deferred>();
+ const PENDING = 1;
+ const RESOLVED = 2;
+ 
++// 結果の上限と待ち時間の上限。どちらも、メモが数百件を超える一覧の取得で足りなくなっていた（領域は使い回すので大きくしてよい）
++const RESULT_BYTES = 32 * 1024 * 1024;
++const MAX_PAUSES = 100_000_000;
++
+ let hasWarnedSync = false;
++let sharedLock: SharedArrayBuffer | undefined;
++let sharedResult: SharedArrayBuffer | undefined;
+ 
+ /**
+  * For worker to send result to the main thread.
+@@ -40,7 +46,7 @@ export function sendWorkerResult({
      const resultJson = error != null ? serialize({ error }) : serialize({ result });
      const resultBytes = new TextEncoder().encode(resultJson);
      const length = resultBytes.length;
@@ -11,3 +25,34 @@ index 7fba380..ef21af0 100644
      resultArray.set(resultBytes, 4);
      Atomics.store(lock, 0, RESOLVED);
    } else {
+@@ -101,9 +107,10 @@ export function invokeWorkerSync<T extends SQLiteWorkerMessageType & keyof Resul
+   }
+ 
+   const id = messageId++;
+-  const lockBuffer = new SharedArrayBuffer(4);
++  // 同期呼び出しは 1 つずつ順に終わるので、呼び出しごとに 1MB を確保せず使い回す（確保し続けると、1 つのトランザクションの中では解放されず "Array buffer allocation failed" になる）
++  const lockBuffer = (sharedLock ??= new SharedArrayBuffer(4));
+   const lock = new Int32Array(lockBuffer);
+-  const resultBuffer = new SharedArrayBuffer(1024 * 1024);
++  const resultBuffer = (sharedResult ??= new SharedArrayBuffer(RESULT_BYTES));
+   const resultArray = new Uint8Array(resultBuffer);
+ 
+   Atomics.store(lock, 0, PENDING);
+@@ -123,7 +130,8 @@ export function invokeWorkerSync<T extends SQLiteWorkerMessageType & keyof Resul
+     ++i;
+ 
+     if (useAtomicsPause) {
+-      if (i > 1_000_000) {
++      if (i > MAX_PAUSES) {
++        sharedLock = sharedResult = undefined;
+         throw new Error('Sync operation timeout');
+       }
+       // @ts-expect-error: Remove this when TypeScript supports Atomics.pause
+@@ -132,6 +140,7 @@ export function invokeWorkerSync<T extends SQLiteWorkerMessageType & keyof Resul
+       // NOTE(kudo): Unfortunate for the busy loop,
+       // because we don't have a way for main thread to yield its execution to other callbacks.
+       if (i > 1000_000_000) {
++        sharedLock = sharedResult = undefined;
+         throw new Error('Sync operation timeout');
+       }
+     }

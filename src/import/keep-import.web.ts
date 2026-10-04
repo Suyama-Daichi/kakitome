@@ -15,8 +15,12 @@ const baseName = (path: string) => path.split('/').pop() ?? path;
 async function collect(files: File[]): Promise<ZipEntry[]> {
   const all: ZipEntry[] = [];
   for (const f of files) {
-    if (/\.zip$/i.test(f.name)) all.push(...(await readZip(f)));
-    else all.push({ name: f.name, bytes: async () => new Uint8Array(await f.arrayBuffer()) });
+    try {
+      if (/\.zip$/i.test(f.name)) all.push(...(await readZip(f)));
+      else all.push({ name: f.name, blob: async () => f });
+    } catch (e) {
+      throw new Error(`${f.name}: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
   return all;
 }
@@ -29,7 +33,7 @@ export async function importKeep(files: File[], onProgress: (done: number, total
   const notes = [];
   for (const e of entries.filter((e) => /\.json$/i.test(e.name))) {
     try {
-      const n = parseKeepNote(JSON.parse(new TextDecoder().decode(await e.bytes())));
+      const n = parseKeepNote(JSON.parse(await (await e.blob()).text()));
       if (n) notes.push(n);
     } catch {
       // Keep のメモではない JSON は無視する
@@ -49,16 +53,21 @@ export async function importKeep(files: File[], onProgress: (done: number, total
     for (const a of n.attachments) {
       const src = media.get(baseName(a.name));
       if (!a.mime.startsWith('image/') || !src) { result.skipped.attachments++; continue; } // 音声など
-      const url = URL.createObjectURL(new Blob([(await src.bytes()) as Uint8Array<ArrayBuffer>], { type: a.mime }));
+      let url: string | undefined;
       try {
+        url = URL.createObjectURL(await src.blob());
         images.push(await importImage(url));
       } catch {
-        result.skipped.attachments++; // ブラウザが読めない形式
+        result.skipped.attachments++; // ブラウザが読めない形式、または大きすぎる画像
       } finally {
-        URL.revokeObjectURL(url);
+        if (url) URL.revokeObjectURL(url);
       }
     }
-    importNote(n.key, { title: n.title, body: n.body, pinned: n.pinned, createdAt: n.createdAt, items: n.items, images });
+    try {
+      importNote(n.key, { title: n.title, body: n.body, pinned: n.pinned, createdAt: n.createdAt, items: n.items, images });
+    } catch (e) {
+      throw new Error(`「${n.title || '無題のメモ'}」: ${e instanceof Error ? e.message : String(e)}`);
+    }
     result.imported++;
   }
   onProgress(notes.length, notes.length);
