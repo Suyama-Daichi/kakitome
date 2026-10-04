@@ -21,13 +21,13 @@ export function KeepImport() {
   const input = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<[number, number] | null>(null);
   const [message, setMessage] = useState('');
-  const [includeArchived, setIncludeArchived] = useState(true);
+  const [skipArchived, setSkipArchived] = useState(true);
 
   const run = async (files: File[]) => {
     setMessage('');
     setProgress([0, 0]);
     try {
-      const r = await importKeep(files, { includeArchived }, (done, total) => setProgress([done, total]));
+      const r = await importKeep(files, { includeArchived: !skipArchived }, (done, total) => setProgress([done, total]));
       setMessage(summary(r));
       if (r.imported) onLocalChange();
     } catch (e) {
@@ -44,8 +44,8 @@ export function KeepImport() {
         Google Takeout で書き出した Keep の ZIP（または、展開した JSON と画像）を選んでください。ゴミ箱のメモは取り込みません。ラベルは本文の末尾に書き足します。同じ ZIP をもう一度選んでも、取り込み済みのメモは重複しません。
       </Text>
       <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>アーカイブしたメモも取り込む</Text>
-        <Switch value={includeArchived} trackColor={{ true: p.accent, false: p.border }} thumbColor={p.ink} onValueChange={setIncludeArchived} />
+        <Text style={styles.switchLabel}>アーカイブしたメモは取り込まない</Text>
+        <Switch value={skipArchived} trackColor={{ true: p.accent, false: p.border }} thumbColor={p.ink} onValueChange={setSkipArchived} />
       </View>
       <input
         ref={input}
