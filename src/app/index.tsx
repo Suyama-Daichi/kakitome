@@ -315,7 +315,7 @@ export default function NoteList() {
       </View>
       <Modal visible={sortMenu} transparent animationType="fade" onRequestClose={() => setSortMenu(false)}>
         <Pressable style={styles.menuBackdrop} onPress={() => setSortMenu(false)}>
-          <View style={styles.menuColumn} pointerEvents="box-none">
+          <View style={[styles.menuColumn, { pointerEvents: 'box-none' }]}>
             <View style={[styles.menu, { top: insets.top + 60 }]}>
               {SORTS.map((o) => (
                 <Pressable key={o.value} style={styles.menuItem} onPress={() => { setSort(o.value); setSortMenu(false); }}>
@@ -329,7 +329,7 @@ export default function NoteList() {
       </Modal>
       <Modal visible={viewMenu !== null} transparent animationType="fade" onRequestClose={() => setViewMenu(null)}>
         <Pressable style={styles.menuBackdrop} onPress={() => setViewMenu(null)}>
-          <View style={styles.menuColumn} pointerEvents="box-none">
+          <View style={[styles.menuColumn, { pointerEvents: 'box-none' }]}>
           <View style={[styles.menu, styles.centerMenu, { top: Math.max(insets.top, Math.min(viewMenuY - 24, windowHeight - VIEW_MENU_HEIGHT - 16)) }]}>
             <Text style={styles.menuHead}>メインで表示</Text>
             {VIEWS.map((o) => {
@@ -454,5 +454,5 @@ const makeStyles = (p: Palette) =>
     menuTextOn: { color: p.accentText, fontWeight: '600' },
     searchInput: { flex: 1, ...type.item, color: p.ink, paddingVertical: 0 },
     iconButton: { padding: 6 },
-    fab: { position: 'absolute', right: 16, bottom: 32, width: size.fab, height: size.fab, borderRadius: radius.fab, backgroundColor: p.yellow, alignItems: 'center', justifyContent: 'center', elevation: 6, shadowColor: p.shadow },
+    fab: { position: 'absolute', right: 16, bottom: 32, width: size.fab, height: size.fab, borderRadius: radius.fab, backgroundColor: p.yellow, alignItems: 'center', justifyContent: 'center', elevation: 6, ...(Platform.OS === 'web' ? { boxShadow: `0 3px 6px ${p.shadow}` } : { shadowColor: p.shadow }) },
   });

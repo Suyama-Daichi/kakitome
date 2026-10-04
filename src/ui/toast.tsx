@@ -20,7 +20,7 @@ export function ToastHost() {
     return () => clearTimeout(t);
   }, [text]);
   return text ? (
-    <View style={styles.toast} pointerEvents="none">
+    <View style={[styles.toast, { pointerEvents: 'none' }]}>
       <Text style={styles.text}>{text}</Text>
     </View>
   ) : null;

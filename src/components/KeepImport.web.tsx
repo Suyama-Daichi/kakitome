@@ -54,7 +54,7 @@ export function KeepImport() {
           icon="archive"
           title="アーカイブしたメモは取り込まない"
           onPress={() => setSkipArchived(!skipArchived)}
-          right={<Switch value={skipArchived} pointerEvents="none" trackColor={{ true: p.accent, false: p.border }} thumbColor={p.ink} onValueChange={setSkipArchived} />}
+          right={<Switch value={skipArchived} style={{ pointerEvents: 'none' }} trackColor={{ true: p.accent, false: p.border }} thumbColor={p.ink} onValueChange={setSkipArchived} />}
         />
       </Group>
       <input

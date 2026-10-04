@@ -178,7 +178,7 @@ export default function Settings() {
           title="画像を高画質で添付"
           sub="Google ドライブの容量を多く使用します"
           onPress={() => { setHighQuality(!highQuality); setHighQualityState(!highQuality); }}
-          right={<Switch value={highQuality} pointerEvents="none" trackColor={{ true: p.accent, false: p.border }} thumbColor={p.ink} onValueChange={() => {}} />}
+          right={<Switch value={highQuality} style={{ pointerEvents: 'none' }} trackColor={{ true: p.accent, false: p.border }} thumbColor={p.ink} onValueChange={() => {}} />}
         />
         <Row
           icon="data-usage"
