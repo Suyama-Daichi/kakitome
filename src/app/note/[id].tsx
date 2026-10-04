@@ -1,10 +1,11 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { addItem, deleteItem, toggleItem, updateItemText, updateNote } from '../../db/actions';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { addItem, deleteItem, moveSorted, toggleItem, updateItemText, updateNote } from '../../db/actions';
 import { conflictCount, getNote, isBlankNote, listItems, type Item } from '../../db/queries';
 import { AttachmentSection } from '../../components/AttachmentSection';
+import { DragHandle } from '../../components/DragHandle';
 import { ReminderSection } from '../../components/ReminderSection';
 import { notifyDbChanged, subscribeDbChanges } from '../../db/changes';
 import { confirmDestructive } from '../../ui/dialog';
@@ -35,7 +36,7 @@ function useAutosave(value: string, save: (v: string) => void) {
   );
 }
 
-function ItemRow({ item, onChange }: { item: Item; onChange: () => void }) {
+function ItemRow({ item, onChange, handle }: { item: Item; onChange: () => void; handle?: React.ReactNode }) {
   const [p, styles] = useThemed(makeStyles);
   const [text, setText] = useState(item.text);
   useAutosave(text, useCallback((v) => { updateItemText(item.id, v); onLocalChange(); }, [item.id]));
@@ -53,6 +54,7 @@ function ItemRow({ item, onChange }: { item: Item; onChange: () => void }) {
         placeholder="項目"
         placeholderTextColor={p.inkDone}
       />
+      {handle}
       <Pressable onPress={() => { deleteItem(item.id); onChange(); onLocalChange(); }} hitSlop={8} accessibilityLabel="項目を削除">
         <MaterialIcons name="close" size={18} color={p.inkDone} />
       </Pressable>
@@ -63,6 +65,9 @@ function ItemRow({ item, onChange }: { item: Item; onChange: () => void }) {
 export default function NoteEditor() {
   const [p, styles] = useThemed(makeStyles);
   const [showDone, setShowDone] = useState(true);
+  const [drag, setDrag] = useState<{ from: number; to: number } | null>(null);
+  const dragY = useRef(new Animated.Value(0)).current;
+  const lastDy = useRef(0);
   const { id } = useLocalSearchParams<{ id: string }>();
   const note = getNote(id);
   const [title, setTitle] = useState(note?.title ?? '');
@@ -107,8 +112,36 @@ export default function NoteEditor() {
   const open = items.filter((it) => !it.checked);
   const done = items.filter((it) => it.checked);
 
+  // 未完了の項目の並び替え: 行の高さは一定なので、動かした行は指に追従させ、通り過ぎた行を 1 行分ずらして見せる
+  const ROW = size.rowEdit;
+  const target = (from: number, dy: number) => Math.max(0, Math.min(open.length - 1, from + Math.round(dy / ROW)));
+  const dragMove = (from: number, dy: number) => {
+    lastDy.current = dy;
+    dragY.setValue(dy);
+    const to = target(from, dy);
+    setDrag((d) => (d && d.to !== to ? { from, to } : d));
+  };
+  const dragEnd = (from: number) => {
+    const to = target(from, lastDy.current);
+    lastDy.current = 0;
+    setDrag(null);
+    dragY.setValue(0);
+    if (to === from) return;
+    const order = [...open];
+    order.splice(to, 0, ...order.splice(from, 1));
+    moveSorted('checklist_item', order, to);
+    reload();
+    onLocalChange();
+  };
+  const shift = (i: number) => {
+    if (!drag || i === drag.from) return 0;
+    if (drag.from < drag.to && i > drag.from && i <= drag.to) return -ROW;
+    if (drag.from > drag.to && i < drag.from && i >= drag.to) return ROW;
+    return 0;
+  };
+
   return (
-    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} scrollEnabled={!drag} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
       <Stack.Screen
         options={{
           headerRight: () => (
@@ -139,7 +172,15 @@ export default function NoteEditor() {
             <Text style={styles.count}>{done.length}/{items.length}</Text>
           </View>
         ) : null}
-        {open.map((it) => <ItemRow key={it.id} item={it} onChange={reload} />)}
+        {open.map((it, i) => (
+          <Animated.View key={it.id} style={drag?.from === i ? { zIndex: 1, elevation: 6, backgroundColor: p.surface, transform: [{ translateY: dragY }] } : { transform: [{ translateY: shift(i) }] }}>
+            <ItemRow
+              item={it}
+              onChange={reload}
+              handle={open.length > 1 ? <DragHandle onStart={() => setDrag({ from: i, to: i })} onMove={(dy) => dragMove(i, dy)} onEnd={() => dragEnd(i)} /> : undefined}
+            />
+          </Animated.View>
+        ))}
         <Pressable style={styles.add} onPress={() => { addItem(id); reload(); onLocalChange(); }}>
           <MaterialIcons name="add" size={20} color={p.accentText} />
           <Text style={styles.addText}>項目を追加</Text>

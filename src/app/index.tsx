@@ -2,8 +2,9 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActionSheetIOS, Animated, Modal, Platform, PanResponder, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { createNote, moveNote, toggleItem, updateNote } from '../db/actions';
+import { createNote, moveSorted, toggleItem, updateNote } from '../db/actions';
 import { BlobImage } from '../media/BlobImage';
+import { DragHandle } from '../components/DragHandle';
 import { ReminderSection } from '../components/ReminderSection';
 import { subscribeDbChanges } from '../db/changes';
 import { doneItems, lastSyncError, listAttachments, listNotes, type ListView, type NoteRow, type NoteSort } from '../db/queries';
@@ -36,28 +37,6 @@ function SwipeRow({ onDelete, children }: { onDelete: () => void; children: Reac
     <View style={styles.swipeBox}>
       <View style={styles.swipeBack}><Text style={styles.swipeText}>削除</Text></View>
       <Animated.View style={[styles.swipeFront, { transform: [{ translateX: x }] }]} {...pan.panHandlers}>{children}</Animated.View>
-    </View>
-  );
-}
-
-/** 右端の「≡」を押したまま上下に動かして並び替える。指を離すまで他の操作を横取りされない */
-function DragHandle({ onStart, onMove, onEnd }: { onStart: () => void; onMove: (dy: number) => void; onEnd: () => void }) {
-  const [p, styles] = useThemed(makeStyles);
-  const cb = useRef({ onStart, onMove, onEnd });
-  cb.current = { onStart, onMove, onEnd };
-  const pan = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: () => cb.current.onStart(),
-      onPanResponderMove: (_, g) => cb.current.onMove(g.dy),
-      onPanResponderRelease: () => cb.current.onEnd(),
-      onPanResponderTerminate: () => cb.current.onEnd(),
-    }),
-  ).current;
-  return (
-    <View {...pan.panHandlers} style={styles.handle} accessibilityLabel="ドラッグして並び替え">
-      <MaterialIcons name="drag-indicator" size={20} color={p.dragHandle} />
     </View>
   );
 }
@@ -114,7 +93,7 @@ export default function NoteList() {
     if (to === from) return;
     const group = notes.slice(lo, hi + 1);
     group.splice(to - lo, 0, ...group.splice(from - lo, 1));
-    moveNote(group, to - lo);
+    moveSorted('note', group, to - lo);
     reload();
     onLocalChange();
   };
@@ -281,8 +260,10 @@ export default function NoteList() {
                     ) : null}
                   </Pressable>
                   {list ? n.preview.map((it) => (
-                    <Pressable key={it.id} style={styles.itemRow} onPress={() => check(it.id)} accessibilityLabel="完了にする">
-                      <View style={styles.box} />
+                    <Pressable key={it.id} style={styles.itemRow} onPress={() => open(n.id)}>
+                      <Pressable hitSlop={8} onPress={() => check(it.id)} accessibilityLabel="完了にする">
+                        <View style={styles.box} />
+                      </Pressable>
                       <Text style={styles.itemText} numberOfLines={1}>{it.text}</Text>
                     </Pressable>
                   )) : null}
@@ -299,8 +280,10 @@ export default function NoteList() {
                     </Pressable>
                   ) : null}
                   {list && expanded.has(n.id) ? doneItems(n.id).map((it) => (
-                    <Pressable key={it.id} style={styles.itemRow} onPress={() => check(it.id)} accessibilityLabel="未完了に戻す">
-                      <View style={[styles.box, styles.boxOn]}><MaterialIcons name="check" size={13} color="#fff" /></View>
+                    <Pressable key={it.id} style={styles.itemRow} onPress={() => open(n.id)}>
+                      <Pressable hitSlop={8} onPress={() => check(it.id)} accessibilityLabel="未完了に戻す">
+                        <View style={[styles.box, styles.boxOn]}><MaterialIcons name="check" size={13} color="#fff" /></View>
+                      </Pressable>
                       <Text style={[styles.itemText, styles.itemDone]} numberOfLines={1}>{it.text}</Text>
                     </Pressable>
                   )) : null}
@@ -400,7 +383,6 @@ const makeStyles = (p: Palette) =>
     chipText: { ...type.caption },
     remind: { marginTop: 10, marginBottom: 2 },
     handleSlot: { position: 'absolute', top: 4, right: 0 },
-    handle: { paddingHorizontal: 10, paddingVertical: 10 },
     searchBox: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 48, marginHorizontal: space.screen, paddingLeft: 14, paddingRight: 6, backgroundColor: p.surface, borderColor: p.border, borderWidth: 1, borderRadius: 24 },
     menuBackdrop: { flex: 1 },
     center: { justifyContent: 'center', alignItems: 'center' },

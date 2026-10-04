@@ -222,6 +222,8 @@ CREATE TABLE blobs (                    -- 画像ファイルの所在と転送�
 
 完了したチェック項目は**表示時のソートで下へ移動**させる。完了操作で `sort_key` は変更しない（余計な op を出さず、チェックを外せば元の位置に戻る）。
 
+編集画面では、未完了の項目を右端の「≡」を押したまま上下に動かして並び替えられる（メモ一覧の並び替えと同じ操作。`DragHandle`、`moveSorted`）。動かした 1 件の `sort_key` だけを前後の間に変える op を出す（完了済みの項目は並び替えない）。
+
 ```sql
 SELECT * FROM checklist_items
 WHERE note_id = ? AND deleted = 0

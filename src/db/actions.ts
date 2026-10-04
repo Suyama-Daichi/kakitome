@@ -32,20 +32,20 @@ export function updateNote(id: string, fields: { title?: string; body?: string; 
 }
 
 /**
- * 並び替え。order は移動後の並び（同じピン留め状態のメモだけ）、moved は動かしたメモの位置。
+ * 並び替え（メモ・チェック項目）。order は移動後の並び（メモは同じピン留め状態のものだけ、項目は同じメモの未完了だけ）、moved は動かした 1 件の位置。
  * 動かした1件の sort_key だけを前後の間に変える。前後の鍵が使えない（空・同値）ときは全件を振り直す
  */
-export function moveNote(order: { id: string; sort_key: string }[], moved: number) {
+export function moveSorted(entity: 'note' | 'checklist_item', order: { id: string; sort_key: string }[], moved: number) {
   const prev = order[moved - 1]?.sort_key || null;
   const next = order[moved + 1]?.sort_key ?? null;
   const { ctx, tx } = openCore();
   tx(() => {
     try {
       if (next === '') throw new Error('no room');
-      applyLocalOp(ctx, 'note', order[moved].id, { sort_key: keyBetween(prev, next) });
+      applyLocalOp(ctx, entity, order[moved].id, { sort_key: keyBetween(prev, next) });
     } catch {
       let k: string | null = null;
-      for (const n of order) applyLocalOp(ctx, 'note', n.id, { sort_key: (k = keyBetween(k, null)) });
+      for (const n of order) applyLocalOp(ctx, entity, n.id, { sort_key: (k = keyBetween(k, null)) });
     }
   });
 }

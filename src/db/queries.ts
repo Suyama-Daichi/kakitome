@@ -1,6 +1,6 @@
 import { getDb } from './index';
 
-export interface Item { id: string; text: string; checked: number }
+export interface Item { id: string; text: string; checked: number; sort_key: string }
 export interface NoteView { id: string; title: string; items: Item[] }
 
 const widgetKey = (widgetId: number) => `widget_note:${widgetId}`;
@@ -47,7 +47,7 @@ export interface NoteRow {
 
 /** 一覧: ピン留め優先、次に sort_key。競合コピーも表示する（バッジ用に conflict_of を返す） */
 export const doneItems = (noteId: string) =>
-  getDb().getAllSync<Item>('SELECT id, text, checked FROM checklist_items WHERE note_id = ? AND deleted = 0 AND checked = 1 ORDER BY sort_key, id', noteId);
+  getDb().getAllSync<Item>('SELECT id, text, checked, sort_key FROM checklist_items WHERE note_id = ? AND deleted = 0 AND checked = 1 ORDER BY sort_key, id', noteId);
 
 export type NoteSort = 'manual' | 'reminder' | 'created' | 'title';
 const ORDER: Record<NoteSort, string> = {
@@ -77,7 +77,7 @@ export function listNotes(query = '', sort: NoteSort = 'manual'): NoteRow[] {
   return rows.map((n) => ({
     ...n,
     preview: db.getAllSync<Item>(
-      'SELECT id, text, checked FROM checklist_items WHERE note_id = ? AND deleted = 0 AND checked = 0 ORDER BY sort_key, id LIMIT 3',
+      'SELECT id, text, checked, sort_key FROM checklist_items WHERE note_id = ? AND deleted = 0 AND checked = 0 ORDER BY sort_key, id LIMIT 3',
       n.id,
     ),
   }));
@@ -105,7 +105,7 @@ export function isBlankNote(id: string): boolean {
 
 export function listItems(noteId: string): Item[] {
   return getDb().getAllSync<Item>(
-    'SELECT id, text, checked FROM checklist_items WHERE note_id = ? AND deleted = 0 ORDER BY checked ASC, sort_key ASC, id',
+    'SELECT id, text, checked, sort_key FROM checklist_items WHERE note_id = ? AND deleted = 0 ORDER BY checked ASC, sort_key ASC, id',
     noteId,
   );
 }
