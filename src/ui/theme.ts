@@ -86,17 +86,13 @@ export function useThemed<T extends object>(make: (p: Palette) => T): [Palette, 
 }
 
 /** フォントは端末のものを使う（依存を増やさない）。数字・日時・状態は等幅 */
-export const font = {
-  sans: undefined,
-  mono: 'monospace',
-};
+export const font = { mono: 'monospace' };
 
 const bold = '700' as const;
 const semi = '600' as const;
 
 export const type = {
   noteTitle: { fontWeight: bold, fontSize: 25, lineHeight: 32 },
-  appTitle: { fontWeight: bold, fontSize: 22, lineHeight: 28 },
   pageHeading: { fontWeight: bold, fontSize: 19, lineHeight: 26 },  // ウィジェットの設定
   sheetTitle: { fontWeight: bold, fontSize: 17, lineHeight: 24 },   // シート・ダイアログ
   cardTitle: { fontWeight: bold, fontSize: 16, lineHeight: 22 },    // 一覧カード・ヘッダー
@@ -110,15 +106,10 @@ export const type = {
   monoValue: { fontFamily: font.mono, fontWeight: bold, fontSize: 16 }, // シートの日付・時刻
 };
 
-export const space = { xs: 4, s: 6, m: 8, l: 10, xl: 12, xxl: 14, screen: 12, cardPad: 14 };
+export const space = { s: 6, m: 8, xxl: 14, screen: 12, cardPad: 14 };
 
-export const radius = {
-  chip: 6, checkbox: 6, checkboxSmall: 5, button: 10, card: 12, iconButton: 12,
-  fab: 16, dialog: 18, widget: 20, sheet: 22, toggle: 13,
-};
+export const radius = { chip: 6, checkbox: 6, checkboxSmall: 5, button: 10, card: 12, fab: 16, sheet: 22 };
 
 export const size = {
-  iconButton: 44, fab: 58, buttonPrimary: 50, button: 44, buttonSheet: 46,
-  rowEdit: 44, rowList: 38, rowWidget: 34, rowOption: 50,
-  checkbox: 20, checkboxList: 18, progress: 3, bottomBar: 62, toggleW: 44, toggleH: 26, toggleKnob: 18,
+  fab: 58, button: 44, rowEdit: 44, rowList: 38, checkbox: 20, checkboxList: 18, progress: 3,
 };

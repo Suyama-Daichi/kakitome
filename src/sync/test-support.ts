@@ -13,8 +13,6 @@ export class MemoryBlobPort implements BlobPort {
   files = new Map<string, Uint8Array>();
   uploaded = new Set<string>();
   remote = new Map<string, string>();
-  wifi = true;
-  wifiOnly = true;
   constructor(private store: MemoryStore) {}
   attachments() {
     return Object.values(this.store.snapshot().attachment ?? {})
@@ -33,7 +31,6 @@ export class MemoryBlobPort implements BlobPort {
   async save(h: string, b: Uint8Array) { this.files.set(h, b); this.uploaded.add(h); }
   missingThumbs() { return this.attachments().map((a) => a.thumbHash).filter((h) => !this.files.has(h)); }
   sha256 = async (b: Uint8Array) => sha(b);
-  allowBodies = async () => !this.wifiOnly || this.wifi;
 
   time = 1_000_000_000_000;
   lastUsed = new Map<string, number>();

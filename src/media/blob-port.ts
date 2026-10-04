@@ -59,7 +59,6 @@ export function createBlobPort(): BlobPort {
         .map((r) => r.thumb_hash),
 
     sha256: (bytes) => sha256Hex(bytes as Uint8Array<ArrayBuffer>),
-    allowBodies: async () => true,
 
     now: () => Date.now(),
 

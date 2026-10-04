@@ -18,8 +18,6 @@ export interface BlobPort {
   /** 削除されていない添付のサムネイルで、端末に無いもの */
   missingThumbs(): string[];
   sha256(bytes: Uint8Array): Promise<string>;
-  /** 本体を今送受信してよいか */
-  allowBodies(): Promise<boolean>;
 
   // --- 後始末（設計 §7.4）
   now(): number;

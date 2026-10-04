@@ -59,9 +59,7 @@ test('同じ画像を参照する別の添付が生きていれば、blob は消
 
 test('未アップロードの blob は、墓標になっても端末から消さない。Drive 上の場所が分からないものは触らない', async () => {
   const { time, A, drive } = await setup();
-  A.port.wifi = false; // 本体は送れない
-  const img = attach(A, 'n1', 1);
-  await sync(A, drive);
+  const img = attach(A, 'n1', 1); // 同期する前に墓標にするので、本体は未アップロードのまま
   applyLocalOp(A.ctx, 'attachment', 'att-1', { deleted: 1 });
   at(40, time, A);
   await sync(A, drive);

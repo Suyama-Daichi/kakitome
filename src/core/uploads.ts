@@ -19,8 +19,6 @@ export interface UploadInput {
   /** 削除されていない添付 */
   attachments: AttachmentRef[];
   blobs: Map<string, BlobState>;
-  /** 本体を今送ってよいか */
-  allowBodies: boolean;
 }
 
 export interface UploadPlan {
@@ -33,7 +31,7 @@ export interface UploadPlan {
  * 今送ってよいものを返す。送信ごとに状態を更新して再計画する想定:
  * サムネイル送信 → 再計画 → op 送信 → 再計画 → 本体送信。
  */
-export function planUploads({ unsentOps, attachments, blobs, allowBodies }: UploadInput): UploadPlan {
+export function planUploads({ unsentOps, attachments, blobs }: UploadInput): UploadPlan {
   const pending = (h: string) => {
     const s = blobs.get(h);
     return !!s && s.local && !s.uploaded;
@@ -45,8 +43,6 @@ export function planUploads({ unsentOps, attachments, blobs, allowBodies }: Uplo
   const ops = unsentOps.filter((o) => !(o.entity === 'attachment' && pending(String(o.fields.thumb_hash ?? ''))));
   // 本体は、それを参照するすべての添付のサムネイルが送信済み（または対象外）になってから
   const blocked = new Set(attachments.filter((a) => pending(a.thumbHash)).map((a) => a.hash));
-  const bodies = allowBodies
-    ? uniq(attachments.map((a) => a.hash)).filter((h) => pending(h) && !blocked.has(h) && !thumbs.includes(h))
-    : [];
+  const bodies = uniq(attachments.map((a) => a.hash)).filter((h) => pending(h) && !blocked.has(h) && !thumbs.includes(h));
   return { thumbs, ops, bodies };
 }

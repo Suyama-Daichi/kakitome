@@ -76,17 +76,16 @@ export async function syncOnce(
   const isOwn = (f: DriveFile) => f.appProperties?.deviceId === device && (f.appProperties.kind === 'ops' || f.appProperties.kind === 'snapshot');
 
   // 画像の順序（設計 §7.3）: サムネイル → op → 本体。状態が変わるたびに計画し直す
-  const plan = async (allowBodies: boolean) =>
+  const plan = () =>
     planUploads({
       unsentOps: store.unsentOps(),
       attachments: blobs ? blobs.attachments() : [],
       blobs: blobs ? blobs.blobs() : new Map(),
-      allowBodies,
     });
 
   const sendOps = async () => {
-    if (blobs) for (const h of (await plan(false)).thumbs) await uploadBlob(drive, blobs, h);
-    const unsent = (await plan(false)).ops;
+    if (blobs) for (const h of plan().thumbs) await uploadBlob(drive, blobs, h);
+    const unsent = plan().ops;
     if (!unsent.length) return;
     const first = unsent[0].hlc;
     const file = await drive.createFile(
@@ -163,7 +162,7 @@ export async function syncOnce(
     // サムネイルは先読み。本体は遅延ダウンロード（表示時）。取得に失敗しても同期全体は止めない
     for (const h of blobs.missingThumbs()) await downloadBlob(drive, blobs, h).catch(() => false);
     // 本体のアップロードは最後
-    const { bodies } = await plan(await blobs.allowBodies());
+    const { bodies } = plan();
     for (const h of bodies) await uploadBlob(drive, blobs, h);
   }
 

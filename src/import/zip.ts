@@ -1,5 +1,5 @@
 // 最小の ZIP 読み取り（Takeout の ZIP 用）。ブラウザ標準の DecompressionStream で展開する。
-// ponytail: 4GB 超（ZIP64）・暗号化には未対応。必要になったら fflate などを入れる
+// ponytail: 4GB 超（ZIP64）・暗号化には未対応
 export interface ZipEntry {
   name: string;
   /** 中身。大きな画像でメモリを使い切らないよう、ArrayBuffer ではなく Blob（ブラウザが管理する領域）で返す */

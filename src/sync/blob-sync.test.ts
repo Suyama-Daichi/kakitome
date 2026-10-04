@@ -20,39 +20,6 @@ test('アップロード順は サムネイル → op → 本体', async () => {
   expect(A.port.uploaded).toEqual(new Set([img.thumbHash, img.bodyHash]));
 });
 
-test('Wi-Fi 限定でモバイル回線のとき: サムネイルと op は送り、本体は Wi-Fi になってから', async () => {
-  const time = { t: 1000 };
-  const [A, B, drive] = [device('dev-a', time), device('dev-b', time), new FakeDrive()];
-  A.port.wifi = false;
-  const img = attach(A, 'n1', 1);
-  await sync(A, drive);
-  expect(names(drive).map((x) => x.split('_')[0])).toEqual(['blob', 'ops']); // 本体は未送信
-  expect(A.ctx.store.unsentOps()).toHaveLength(0);
-
-  // 他端末: 添付は見えてサムネイルも取得済み、本体は未取得（op が先に届き本体が後から届く）
-  await sync(B, drive);
-  expect(B.ctx.store.snapshot().attachment['att-1'].hash).toBe(img.bodyHash);
-  expect(B.port.files.has(img.thumbHash)).toBe(true);
-  expect(B.port.files.has(img.bodyHash)).toBe(false);
-  expect(await downloadBlob(drive, B.port, img.bodyHash)).toBe(false); // Drive にまだ無い
-
-  A.port.wifi = true;
-  await sync(A, drive);
-  await sync(B, drive); // 本体のファイルが changes に現れ、ID を知る
-  expect(await downloadBlob(drive, B.port, img.bodyHash)).toBe(true);
-  expect([...B.port.files.get(img.bodyHash)!]).toEqual([...img.body]);
-});
-
-test('Wi-Fi 限定を切れば、モバイル回線でも本体を送る', async () => {
-  const time = { t: 1000 };
-  const [A, drive] = [device('dev-a', time), new FakeDrive()];
-  A.port.wifi = false;
-  A.port.wifiOnly = false;
-  attach(A, 'n1', 1);
-  await sync(A, drive);
-  expect(names(drive)).toHaveLength(3);
-});
-
 test('内容がハッシュと一致しない blob は保存しない（同期は止まらない）', async () => {
   const time = { t: 1000 };
   const [A, B, drive] = [device('dev-a', time), device('dev-b', time), new FakeDrive()];
@@ -80,10 +47,9 @@ test('同じ画像を他端末が先に送っていれば、再アップロー�
   expect(drive.files.size).toBe(before + 1); // 増えたのは op ファイルだけ
 });
 
-test('ランダムな追加・回線切替・通信エラーのあと、Wi-Fi で同期すれば全端末に画像が行き渡る', async () => {
+test('ランダムな追加・通信エラーのあと、同期すれば全端末に画像が行き渡る', async () => {
   const step = fc.oneof(
     fc.record({ k: fc.constant('add' as const), dev: fc.nat(2), n: fc.nat(30) }),
-    fc.record({ k: fc.constant('wifi' as const), dev: fc.nat(2), on: fc.boolean() }),
     fc.record({ k: fc.constant('sync' as const), dev: fc.nat(2) }),
   );
   await fc.assert(
@@ -99,10 +65,8 @@ test('ランダムな追加・回線切替・通信エラーのあと、Wi-Fi �
           const img = attach(devs[s.dev], 'n1', s.n + s.dev * 100);
           all.set(img.thumbHash, img.thumb);
           all.set(img.bodyHash, img.body);
-        } else if (s.k === 'wifi') devs[s.dev].port.wifi = s.on;
-        else await sync(devs[s.dev], drive).catch(() => {});
+        } else await sync(devs[s.dev], drive).catch(() => {});
       }
-      for (const d of devs) d.port.wifi = true;
       for (let r = 0; r < 3; r++) for (const d of devs) for (let i = 0; i < 30; i++) { try { await sync(d, drive); break; } catch { /* 再試行 */ } }
       for (const d of devs) {
         expect(d.ctx.store.unsentOps()).toHaveLength(0);
