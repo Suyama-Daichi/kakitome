@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addAttachment, deleteAttachment } from '../db/actions';
 import { subscribeDbChanges } from '../db/changes';
 import { listAttachments, type AttachmentView } from '../db/queries';
@@ -11,6 +11,7 @@ import { touchBlob } from '../media/blob-port';
 import { ensureBody, type BodyResult } from '../media/body';
 import { importImage } from '../media/process';
 import { onLocalChange } from '../sync/auto';
+import { notify } from '../ui/dialog';
 import { radius, space, type, useThemed, type Palette } from '../ui/theme';
 
 const THUMB = 96;
@@ -34,7 +35,7 @@ export function AttachmentSection({ noteId }: { noteId: string }) {
       reload();
       onLocalChange();
     } catch (e) {
-      Alert.alert('画像を追加できませんでした', e instanceof Error ? e.message : String(e));
+      notify('画像を追加できませんでした', e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }

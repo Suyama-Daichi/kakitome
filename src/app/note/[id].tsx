@@ -1,12 +1,13 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { addItem, deleteItem, toggleItem, updateItemText, updateNote } from '../../db/actions';
 import { conflictCount, getNote, isBlankNote, listItems, type Item } from '../../db/queries';
 import { AttachmentSection } from '../../components/AttachmentSection';
 import { ReminderSection } from '../../components/ReminderSection';
 import { notifyDbChanged, subscribeDbChanges } from '../../db/changes';
+import { confirmDestructive } from '../../ui/dialog';
 import { onLocalChange } from '../../sync/auto';
 import { radius, size, space, type, useThemed, type Palette } from '../../ui/theme';
 
@@ -76,6 +77,14 @@ export default function NoteEditor() {
 
   // 同期で届いた変更は項目一覧にだけ反映する。入力中のタイトル・本文は上書きしない（保存時に LWW で解決）
   useEffect(() => subscribeDbChanges(reload), [reload]);
+  // 競合の解消画面から戻ったとき、バナーを消し、解消した本文・タイトルを入力欄に反映する（入力中ではないので上書きしてよい。値が同じなら保存は走らない）
+  useFocusEffect(
+    useCallback(() => {
+      const cur = getNote(id);
+      reload();
+      if (cur) { setTitle(cur.title); setBody(cur.body); }
+    }, [id, reload]),
+  );
 
   useAutosave(title, useCallback((v) => { updateNote(id, { title: v }); onLocalChange(); }, [id]));
   useAutosave(body, useCallback((v) => { updateNote(id, { body: v }); onLocalChange(); }, [id]));
@@ -93,10 +102,7 @@ export default function NoteEditor() {
   if (!note) return <Text style={styles.missing}>このメモは削除されました</Text>;
 
   const remove = () =>
-    Alert.alert('メモを削除', 'このメモを削除しますか？', [
-      { text: 'キャンセル', style: 'cancel' },
-      { text: '削除', style: 'destructive', onPress: () => { updateNote(id, { deleted: 1 }); onLocalChange(); router.back(); } },
-    ]);
+    confirmDestructive('メモを削除', 'このメモを削除しますか？', () => { updateNote(id, { deleted: 1 }); onLocalChange(); router.back(); });
 
   const open = items.filter((it) => !it.checked);
   const done = items.filter((it) => it.checked);

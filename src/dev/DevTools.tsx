@@ -45,9 +45,9 @@ async function devSeedConflict(): Promise<string> {
   const baseHlc = ctx.store.getField('note', note.id, 'body')!.hlc;
   const ms = Date.now() + 1000;
   const hlc = `${String(ms).padStart(13, '0')}:0000:dev-pseudo`;
-  const op = { id: `pseudo-${ms}`, hlc, entity: 'note', entityId: note.id, fields: { body: 'りんご\nみかん\nぶどう\nメロン（別の端末）' }, base: { body: baseHlc } };
+  const op = { id: `pseudo-${ms}`, hlc, entity: 'note', entityId: note.id, fields: { body: 'りんご\nみかん\nぶどう\nメロン' }, base: { body: baseHlc } };
   await makeDrive().createFile({ name: `ops_dev-pseudo_${hlc}.jsonl`, appProperties: { deviceId: 'dev-pseudo', hlc, kind: 'ops' } }, JSON.stringify(op) + '\n');
-  tx(() => applyLocalOp(ctx, 'note', note.id, { body: 'りんご\nみかん\nぶどう\nバナナ（この端末）' }));
+  tx(() => applyLocalOp(ctx, 'note', note.id, { body: 'りんご\nみかん\nぶどう\nバナナ' }));
   await runSync();
   return '競合を仕込みました。同期後、メモの上部に競合バナーが出ます';
 }

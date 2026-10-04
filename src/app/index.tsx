@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActionSheetIOS, Alert, Animated, Modal, Platform, PanResponder, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActionSheetIOS, Animated, Modal, Platform, PanResponder, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { createNote, moveNote, toggleItem, updateNote } from '../db/actions';
 import { ReminderSection } from '../components/ReminderSection';
 import { subscribeDbChanges } from '../db/changes';
@@ -9,6 +9,8 @@ import { doneItems, lastSyncError, listNotes, type NoteRow, type NoteSort } from
 import { onLocalChange, scheduler } from '../sync/auto';
 import { isSignedIn } from '../sync/google-auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { confirmDestructive } from '../ui/dialog';
+import { showToast } from '../ui/toast';
 import { radius, size, space, type, useThemed, type Palette } from '../ui/theme';
 
 const SWIPE_DELETE = -96;
@@ -123,10 +125,7 @@ export default function NoteList() {
   };
 
   const remove = (n: NoteRow) =>
-    Alert.alert('メモを削除', `「${n.title || n.body.split('\n')[0] || '無題のメモ'}」を削除しますか？`, [
-      { text: 'キャンセル', style: 'cancel' },
-      { text: '削除', style: 'destructive', onPress: () => { updateNote(n.id, { deleted: 1 }); onLocalChange(); } },
-    ]);
+    confirmDestructive('メモを削除', `「${n.title || n.body.split('\n')[0] || '無題のメモ'}」を削除しますか？`, () => { updateNote(n.id, { deleted: 1 }); onLocalChange(); });
 
   const open = (id: string) => router.push({ pathname: '/note/[id]', params: { id } });
   // 完了項目を展開しているカード
@@ -155,18 +154,12 @@ export default function NoteList() {
       setSortMenu(true); // Android の Alert はボタン 3 つまでなので、自前のメニュー
     }
   };
-  const [toast, setToast] = useState<string | null>(null);
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 2500);
-    return () => clearTimeout(t);
-  }, [toast]);
   const refresh = async () => {
     setRefreshing(true);
     await scheduler.trigger();
     setRefreshing(false);
     // 失敗は例外にならず last_error に残る（成功時は空文字）
-    setToast(!isSignedIn() ? '設定で同期をオンにすると使えます' : lastSyncError() ? '同期に失敗しました' : '同期しました');
+    showToast(!isSignedIn() ? '設定で同期をオンにすると使えます' : lastSyncError() ? '同期に失敗しました' : '同期しました');
   };
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpanded = (id: string) =>
@@ -308,11 +301,6 @@ export default function NoteList() {
           );
         })}
       </ScrollView>
-      {toast ? (
-        <View style={styles.toast} pointerEvents="none">
-          <Text style={styles.toastText}>{toast}</Text>
-        </View>
-      ) : null}
       <Pressable style={styles.fab} onPress={() => open(createNote())} accessibilityLabel="新しいメモ">
         <MaterialIcons name="add" size={28} color={p.onYellow} />
       </Pressable>
@@ -337,8 +325,6 @@ const makeStyles = (p: Palette) =>
     list: { paddingHorizontal: space.screen, paddingBottom: 110 },
     meta: { ...type.monoMeta, color: p.inkFaint, paddingHorizontal: 6, paddingVertical: space.m },
     metaOpen: { color: p.yellowText },
-    toast: { position: 'absolute', left: space.screen, right: 90, bottom: 32, backgroundColor: p.ink, borderRadius: radius.card, paddingVertical: 12, paddingHorizontal: space.xxl },
-    toastText: { ...type.small, color: p.bg },
     empty: { ...type.small, textAlign: 'center', color: p.inkMuted, marginTop: 80 },
     cell: { marginBottom: space.m },
     swipeBox: { backgroundColor: p.danger, borderRadius: radius.card, overflow: 'hidden' },

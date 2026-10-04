@@ -1,5 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import NetInfo from '@react-native-community/netinfo';
+import { Platform } from 'react-native';
 import type { BlobState } from '../core/uploads';
 import { getDb } from '../db';
 import type { BlobPort } from '../sync/blobs';
@@ -15,6 +16,7 @@ export const setWifiOnly = (on: boolean) =>
 
 /** Wi-Fi／有線で、従量課金の回線でない */
 async function onUnmeteredNetwork(): Promise<boolean> {
+  if (Platform.OS === 'web') return true; // ブラウザは回線の種別を教えてくれない
   const s = await NetInfo.fetch();
   return (s.type === 'wifi' || s.type === 'ethernet') && s.details.isConnectionExpensive !== true;
 }

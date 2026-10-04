@@ -1,10 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { diffLines, mergeThreeWay } from '../../core/diff';
 import { resolveConflict } from '../../db/actions';
 import { conflictsFor, type ConflictView } from '../../db/queries';
 import { onLocalChange } from '../../sync/auto';
+import { showToast } from '../../ui/toast';
 import { radius, space, type, useThemed, type Palette } from '../../ui/theme';
 
 const FIELD = { title: 'タイトル', body: '本文' } as const;
@@ -71,20 +72,37 @@ export default function ConflictScreen() {
   const [, styles] = useThemed(makeStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const [version, setVersion] = useState(0);
+  // キーボードの高さ分だけ下に余白を足し、ボタンまでスクロールできるようにする（edge-to-edge の Android でも効く）
+  const [kb, setKb] = useState(0);
+  useEffect(() => {
+    const onShow = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', (e) => setKb(e.endCoordinates.height));
+    const onHide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKb(0));
+    return () => { onShow.remove(); onHide.remove(); };
+  }, []);
   const conflicts = useMemo(() => conflictsFor(id), [id, version]);
+  const onResolved = (remaining: number) => {
+    if (remaining > 0) {
+      showToast(`解消しました。残り ${remaining} 件`);
+      setVersion((v) => v + 1);
+    } else {
+      showToast('競合をすべて解消しました');
+      router.back(); // 残りが無ければ、この画面に留まる理由がない
+    }
+  };
 
-  if (!conflicts.length) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.empty}>解消する競合はありません</Text>
-        <Pressable style={styles.button} onPress={() => router.back()}><Text style={styles.buttonText}>戻る</Text></Pressable>
-      </View>
-    );
-  }
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
-      {conflicts.map((c) => <Resolver key={c.copyId} c={c} onDone={() => setVersion((v) => v + 1)} />)}
-    </ScrollView>
+    <View style={styles.scroll}>
+      {conflicts.length ? (
+        <ScrollView style={styles.scroll} contentContainerStyle={[styles.container, { paddingBottom: 60 + kb }]} keyboardShouldPersistTaps="handled">
+          {conflicts.map((c) => <Resolver key={c.copyId} c={c} onDone={() => onResolved(conflicts.length - 1)} />)}
+        </ScrollView>
+      ) : (
+        <View style={styles.container}>
+          <Text style={styles.empty}>解消する競合はありません</Text>
+          <Pressable style={styles.button} onPress={() => router.back()}><Text style={styles.buttonText}>戻る</Text></Pressable>
+        </View>
+      )}
+    </View>
   );
 }
 

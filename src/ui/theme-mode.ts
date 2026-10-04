@@ -1,5 +1,5 @@
-import { Appearance } from 'react-native';
 import { getDb } from '../db';
+import { applyColorScheme } from './color-scheme';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 
@@ -11,7 +11,7 @@ export function getThemeMode(): ThemeMode {
 
 /** アプリ全体の配色を切り替える（useColorScheme と StatusBar の auto もこれに従う） */
 export function applyThemeMode(mode: ThemeMode) {
-  Appearance.setColorScheme(mode === 'system' ? 'unspecified' : mode);
+  applyColorScheme(mode === 'system' ? 'unspecified' : mode);
 }
 
 export function setThemeMode(mode: ThemeMode) {

@@ -1,11 +1,12 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useCallback, useState } from 'react';
-import { Alert, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { addReminder, deleteReminder, setReminderEnabled } from '../db/actions';
 import { listReminders, type ReminderView } from '../db/queries';
 import { ensureNotificationPermission } from '../notifications/reconcile';
 import { onLocalChange } from '../sync/auto';
+import { notify } from '../ui/dialog';
 import { radius, space, type, useThemed, type Palette } from '../ui/theme';
 
 const REPEATS = [
@@ -18,6 +19,9 @@ const REPEATS = [
 
 const repeatLabel = (rrule: string | null) => (rrule ? (REPEATS.find((r) => r.rrule === rrule)?.label ?? '繰り返し') : '1回');
 const fmt = (d: Date) => d.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
+
+/** <input type="datetime-local"> の値（端末のローカル時刻） */
+const toLocalInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 
 /** 既定は次の正時 */
 function nextHour(): Date {
@@ -48,7 +52,7 @@ export function ReminderSection({ noteId }: { noteId: string }) {
   const save = async () => {
     if (!draft) return;
     if (!(await ensureNotificationPermission())) {
-      Alert.alert('通知が許可されていません', 'リマインドを鳴らすには、設定アプリで kakitome の通知を許可してください。リマインド自体は保存されます。');
+      notify('通知が許可されていません', 'リマインドを鳴らすには、設定アプリで kakitome の通知を許可してください。リマインド自体は保存されます。');
     }
     addReminder(noteId, draft.at, draft.rrule);
     setDraft(null);
@@ -70,9 +74,18 @@ export function ReminderSection({ noteId }: { noteId: string }) {
       ))}
       {draft ? (
         <View style={styles.draft}>
-          <Pressable onPress={() => Platform.OS === 'android' && pickAndroid(draft.at, (at) => setDraft({ ...draft, at }))}>
-            <Text style={styles.dateButton}>{fmt(draft.at)}</Text>
-          </Pressable>
+          {Platform.OS === 'web' ? (
+            <input
+              type="datetime-local"
+              value={toLocalInput(draft.at)}
+              onChange={(e) => { const at = new Date(e.target.value); if (!isNaN(at.getTime())) setDraft({ ...draft, at }); }}
+              style={{ font: 'inherit', padding: 8, borderRadius: 8, border: `1px solid ${p.borderControl}`, background: p.surface, color: p.reminderFg, alignSelf: 'flex-start' }}
+            />
+          ) : (
+            <Pressable onPress={() => Platform.OS === 'android' && pickAndroid(draft.at, (at) => setDraft({ ...draft, at }))}>
+              <Text style={styles.dateButton}>{fmt(draft.at)}</Text>
+            </Pressable>
+          )}
           {__DEV__ ? (
             <Pressable onPress={() => setDraft({ ...draft, at: new Date(Date.now() + 90_000) })}>
               <Text style={styles.hint}>（開発用）90秒後にする</Text>

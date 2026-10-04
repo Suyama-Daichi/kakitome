@@ -1,5 +1,5 @@
 import * as Crypto from 'expo-crypto';
-import { openDatabaseSync, type SQLiteDatabase } from 'expo-sqlite';
+import { openDatabaseAsync, openDatabaseSync, type SQLiteDatabase } from 'expo-sqlite';
 import { v7 as uuidv7 } from 'uuid';
 import { createClock, type Clock } from '../core/hlc';
 import type { Ctx } from '../core/merge';
@@ -7,13 +7,23 @@ import { SCHEMA } from './schema';
 import { SqliteStore } from './sqlite-store';
 
 let db: SQLiteDatabase | undefined;
+const PRAGMAS = 'PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL;'; // アプリとウィジェットが同時に書く
+function setup(d: SQLiteDatabase) {
+  d.execSync(PRAGMAS);
+  d.execSync(SCHEMA);
+  return d;
+}
 export function getDb() {
-  if (!db) {
-    db = openDatabaseSync('kakitome.db');
-    db.execSync('PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL;'); // アプリとウィジェットが同時に書く
-    db.execSync(SCHEMA);
-  }
-  return db;
+  return (db ??= setup(openDatabaseSync('kakitome.db')));
+}
+
+/** Web: ワーカーの起動前に同期 API を呼ぶとタイムアウトするので、最初に非同期で開く（以降の getDb は同期のまま使える） */
+export async function initDb() {
+  if (db) return;
+  const d = await openDatabaseAsync('kakitome.db');
+  await d.execAsync(PRAGMAS); // 同期 API は待てる時間が短く、スキーマ作成は間に合わない
+  await d.execAsync(SCHEMA);
+  db = d;
 }
 
 const getState = (db: SQLiteDatabase, key: string) =>

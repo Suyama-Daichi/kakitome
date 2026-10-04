@@ -4,7 +4,7 @@
  * src/core/ からは参照しないこと（core は UI 非依存）。
  */
 import { useMemo } from 'react';
-import { useColorScheme } from 'react-native';
+import { useColorScheme } from './color-scheme';
 
 const dark = {
   bg: '#0d1211',            // 画面の地
