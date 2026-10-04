@@ -358,7 +358,7 @@ export default function NoteList() {
           未完了 <Text style={styles.metaOpen}>{openCount}</Text> · 完了 {doneCount} · メモ {notes.length}
         </Text>
         {notes.length ? null : <Text style={styles.empty}>{query ? '見つかりませんでした' : 'メモはまだありません'}</Text>}
-        <View style={cols === 2 ? styles.columns : undefined}>
+        <View key={cols} style={cols === 2 ? styles.columns : undefined}>{/* key: iOS は、実行中の 1 列→2 列の切り替えでレイアウトを更新しないので、作り直す */}
           {(cols === 2 ? [0, 1] : [0]).map((c) => (
             <View key={c} style={cols === 2 ? [styles.column, drag && drag.from % 2 === c ? styles.columnDragging : null] : undefined}>
               {notes.map((n, i) => (cols === 2 && i % 2 !== c ? null : renderNote(n, i)))}
@@ -409,7 +409,7 @@ const makeStyles = (p: Palette) =>
     cell: { marginBottom: space.m },
     dropTarget: { opacity: 0.4 },
     columns: { flexDirection: 'row', gap: space.m },
-    column: { flex: 1 },
+    column: { flex: 1, flexBasis: 0, minWidth: 0 }, // iOS: 中身の幅に引きずられて、1 列目が画面の外へ広がるのを防ぐ
     columnDragging: { zIndex: 1 }, // 掴んだカードが、もう一方の列の上に重なるように
     swipeBox: { backgroundColor: p.danger, borderRadius: radius.card, overflow: 'hidden' },
     swipeBack: { ...(StyleSheet.absoluteFill as object), justifyContent: 'center', alignItems: 'flex-end', paddingRight: 24 },
