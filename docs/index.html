@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kakitome — チェックリストのメモ帳</title>
+<meta name="description" content="kakitome（書き留め）は、チェックリストを中心にした、サーバーを持たないローカルファーストのメモアプリです。ウィジェットからチェックでき、Google ドライブで同期できます。">
+<meta property="og:title" content="kakitome — チェックリストのメモ帳">
+<meta property="og:description" content="チェックリスト・リマインド・ウィジェットに対応した、シンプルなメモアプリ。">
+<meta property="og:image" content="https://kakitome.d0nchan.com/assets/images/icon.png">
+<link rel="icon" href="assets/images/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&amp;display=block" rel="stylesheet"><style>html{scroll-behavior:smooth}body{margin:0;background:#f3f5f4;color:#0f1a18;font-family:'IBM Plex Sans JP',system-ui,sans-serif;-webkit-font-smoothing:antialiased}::selection{background:#ffca28;color:#10201d}a{color:#00796b}a:hover{color:#004d40}.ms{font-family:'Material Symbols Rounded';font-weight:normal;font-style:normal;line-height:1;letter-spacing:normal;white-space:nowrap;font-feature-settings:'liga';display:inline-block;user-select:none}</style>
+</head>
+<body>
+<noscript><p style="padding:24px;font-family:sans-serif">kakitome（書き留め）は、チェックリストを中心にしたシンプルなメモアプリです。このページの表示には JavaScript が必要です。<br><a href="privacy">プライバシーポリシー</a> · <a href="licenses">オープンソースライセンス</a></p></noscript>
+<div id="root"></div>
+<template id="tpl">
+
+
+<header style="position:fixed;top:0;left:0;right:0;z-index:50;background:rgba(243,245,244,.86);backdrop-filter:saturate(1.4) blur(12px);-webkit-backdrop-filter:saturate(1.4) blur(12px);border-bottom:1px solid rgba(15,26,24,.08)">
+<div style="max-width:1280px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;gap:28px">
+<a href="#top" style="display:flex;align-items:center;gap:10px;color:#0f1a18;text-decoration:none;flex:1"><img src="assets/images/icon.png" alt="" style="width:28px;height:28px;border-radius:7px"><span style="font-size:17px;font-weight:700;letter-spacing:-.01em">kakitome</span></a>
+<nav style="display:flex;align-items:center;gap:24px;font-size:13px">
+<a href="#features" style="color:#3d4d49;text-decoration:none" style-hover="color:#0f1a18">機能</a>
+<a href="#keep" style="color:#3d4d49;text-decoration:none" style-hover="color:#0f1a18">Keep から移行</a>
+<a href="#download" style="height:38px;padding:0 16px;border-radius:10px;background:#0f1a18;color:#ffffff;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:6px" style-hover="background:#00796b;color:#ffffff"><span class="ms" style="font-size:18px">download</span>ダウンロード</a>
+</nav>
+</div>
+</header>
+
+<section id="top" data-screen-label="ヒーロー" style="position:relative;margin-top:61px;background-color:#f3f5f4;background-image:linear-gradient(rgba(15,26,24,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(15,26,24,.045) 1px,transparent 1px);background-size:32px 32px;background-position:-1px -1px;border-bottom:1px solid #dde5e2">
+<div style="max-width:1280px;margin:0 auto;padding:40px 24px 48px;min-height:calc(100vh - 61px);box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;gap:48px">
+<div data-reveal="0" style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font:500 12px 'JetBrains Mono',monospace;color:#5d6e6a">
+<span>kakitome — チェックリストのメモ帳</span>
+<span>Android · Web</span>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:.06em;font-size:clamp(46px,9.2vw,136px);font-weight:700;line-height:1.18;letter-spacing:-.02em">
+<div data-reveal="80" onClick="{{ h0.toggle }}" style="display:flex;align-items:center;gap:.34em;cursor:pointer;width:fit-content;user-select:none">
+<span style="width:.74em;height:.74em;border-radius:.15em;box-sizing:border-box;flex:none;display:flex;align-items:center;justify-content:center;transition:background .25s,border-color .25s;background:{{ h0.bg }};border:.065em solid {{ h0.bc }}"><span class="ms" style="font-size:.6em;color:#ffffff;transition:transform .35s cubic-bezier(.3,1.6,.5,1),opacity .2s;transform:scale({{ h0.cs }});opacity:{{ h0.co }}">check</span></span>
+<span style="position:relative;transition:color .4s;color:{{ h0.color }}">書き留める<span style="position:absolute;left:-.04em;top:56%;height:.07em;border-radius:.04em;background:#0f1a18;transition:width .5s cubic-bezier(.65,0,.25,1);width:{{ h0.lw }}"></span></span>
+<sc-if value="{{ h0.hint }}" hint-placeholder-val="{{ false }}"><span style="font:500 13px 'JetBrains Mono';letter-spacing:0;color:#00796b;align-self:center;display:flex;align-items:center;gap:6px"><span class="ms" style="font-size:18px">arrow_back</span>押してみる</span></sc-if>
+</div>
+<div data-reveal="160" onClick="{{ h1.toggle }}" style="display:flex;align-items:center;gap:.34em;cursor:pointer;width:fit-content;user-select:none">
+<span style="width:.74em;height:.74em;border-radius:.15em;box-sizing:border-box;flex:none;display:flex;align-items:center;justify-content:center;transition:background .25s,border-color .25s;background:{{ h1.bg }};border:.065em solid {{ h1.bc }}"><span class="ms" style="font-size:.6em;color:#ffffff;transition:transform .35s cubic-bezier(.3,1.6,.5,1),opacity .2s;transform:scale({{ h1.cs }});opacity:{{ h1.co }}">check</span></span>
+<span style="position:relative;transition:color .4s;color:{{ h1.color }}">チェックする<span style="position:absolute;left:-.04em;top:56%;height:.07em;border-radius:.04em;background:#0f1a18;transition:width .5s cubic-bezier(.65,0,.25,1);width:{{ h1.lw }}"></span></span>
+<sc-if value="{{ h1.hint }}" hint-placeholder-val="{{ false }}"><span style="font:500 13px 'JetBrains Mono';letter-spacing:0;color:#00796b;align-self:center;display:flex;align-items:center;gap:6px"><span class="ms" style="font-size:18px">arrow_back</span>押してみる</span></sc-if>
+</div>
+<div data-reveal="240" onClick="{{ h2.toggle }}" style="display:flex;align-items:center;gap:.34em;cursor:pointer;width:fit-content;user-select:none">
+<span style="width:.74em;height:.74em;border-radius:.15em;box-sizing:border-box;flex:none;display:flex;align-items:center;justify-content:center;transition:background .25s,border-color .25s;background:{{ h2.bg }};border:.065em solid {{ h2.bc }}"><span class="ms" style="font-size:.6em;color:#ffffff;transition:transform .35s cubic-bezier(.3,1.6,.5,1),opacity .2s;transform:scale({{ h2.cs }});opacity:{{ h2.co }}">check</span></span>
+<span style="position:relative;transition:color .4s;color:{{ h2.color }}">どこでも続ける<span style="position:absolute;left:-.04em;top:56%;height:.07em;border-radius:.04em;background:#0f1a18;transition:width .5s cubic-bezier(.65,0,.25,1);width:{{ h2.lw }}"></span></span>
+<sc-if value="{{ h2.hint }}" hint-placeholder-val="{{ false }}"><span style="font:500 13px 'JetBrains Mono';letter-spacing:0;color:#00796b;align-self:center;display:flex;align-items:center;gap:6px"><span class="ms" style="font-size:18px">arrow_back</span>押してみる</span></sc-if>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:32px;align-items:end">
+<p data-reveal="320" style="margin:0;font-size:17px;line-height:1.9;color:#3d4d49;max-width:30em;text-wrap:pretty">kakitome は、チェックリストを中心にしたシンプルなメモアプリです。ホーム画面のウィジェットから、アプリを開かずに項目にチェックできます。</p>
+<div data-reveal="400" style="display:flex;flex-direction:column;align-items:flex-start;gap:16px;justify-self:end">
+<div style="display:flex;flex-wrap:wrap;gap:10px">
+<a href="#download" style="height:54px;padding:0 24px;border-radius:12px;background:#ffca28;color:#10201d;font-size:15px;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:8px;transition:transform .2s" style-hover="transform:translateY(-2px);color:#10201d"><span class="ms" style="font-size:20px">android</span>Android 版をダウンロード</a>
+<a href="#features" style="height:54px;padding:0 20px;border-radius:12px;border:1px solid #cfd9d5;background:#ffffff;color:#0f1a18;font-size:15px;text-decoration:none;display:flex;align-items:center;gap:8px" style-hover="border-color:#0f1a18;color:#0f1a18"><span class="ms" style="font-size:20px">south</span>機能を見る</a>
+</div>
+<span style="font:500 12px 'JetBrains Mono';color:{{ heroCountColor }};display:flex;align-items:center;gap:6px;transition:color .3s"><span class="ms" style="font-size:16px">{{ heroCountIcon }}</span>{{ heroCount }}</span>
+</div>
+</div>
+</div>
+</section>
+
+<section id="features" data-screen-label="機能（スクロール連動）" style="position:relative;max-width:1280px;margin:0 auto;padding:0 24px;display:grid;column-gap:48px;grid-template-columns:{{ gridCols }}">
+
+<div style="position:sticky;align-self:start;z-index:1;display:flex;align-items:center;justify-content:center;grid-row:1;grid-column:{{ stageCol }};top:{{ stageTop }};height:{{ stageH }}">
+<sc-if value="{{ wide }}" hint-placeholder-val="{{ true }}">
+<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 min(34vw,460px)/1 'JetBrains Mono';letter-spacing:-.06em;color:rgba(0,137,123,.06);pointer-events:none;user-select:none">{{ stepNo }}</span>
+<div style="position:absolute;top:20px;left:0;right:0;display:flex;align-items:center;gap:14px;font:500 12px 'JetBrains Mono';color:#5d6e6a">
+<div style="display:flex;gap:4px"><sc-for list="{{ ticks }}" as="t" hint-placeholder-count="6"><span style="width:22px;height:3px;border-radius:2px;transition:background .4s;background:{{ t.bg }}"></span></sc-for></div>
+<span>{{ stepNo }} / 06</span><span style="color:#0f1a18">{{ stepName }}</span>
+</div>
+</sc-if>
+
+<div style="position:relative;flex:none;transition:transform .8s cubic-bezier(.2,.7,.2,1),opacity .6s;width:{{ phoneW }};height:{{ phoneH }};opacity:{{ phoneOp }};transform:{{ phoneTf }}">
+<div style="width:376px;height:776px;transform-origin:0 0;transform:scale({{ phoneScale }})">
+<div style="width:376px;height:776px;box-sizing:border-box;border-radius:44px;border:8px solid #0f1a18;background:#0f1a18;overflow:hidden;position:relative;box-shadow:0 40px 80px -30px rgba(15,26,24,.45),0 0 0 1px rgba(15,26,24,.2)">
+
+<div data-screen-label="端末 01 一覧" style="position:absolute;inset:0;background:#f3f5f4;display:flex;flex-direction:column;border-radius:36px;overflow:hidden;transition:opacity .5s,transform .6s cubic-bezier(.2,.7,.2,1);opacity:{{ sc0.op }};transform:{{ sc0.tf }};pointer-events:{{ sc0.pe }}">
+<div style="height:28px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font:500 12px 'JetBrains Mono';color:#0f1a18"><span>09:41</span><span class="ms" style="font-size:16px">signal_cellular_alt wifi battery_full</span></div>
+<div style="flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:14px 12px 12px 18px">
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:22px;font-weight:700">kakitome</span><span style="font:400 11px 'JetBrains Mono','IBM Plex Sans JP';color:#5d6e6a">未完了 <span style="color:#8a6400">{{ totalOpen }}</span> · 完了 {{ totalDone }} · メモ 3</span></div>
+<span class="ms" style="width:44px;height:44px;border-radius:12px;border:1px solid #dde5e2;display:flex;align-items:center;justify-content:center;font-size:20px;color:#3d4d49">settings</span></div>
+<div style="flex:1;padding:0 12px;display:flex;flex-direction:column;gap:8px">
+<div style="background:#ffffff;border:1px solid #dde5e2;border-radius:12px;padding:12px 14px 10px;display:flex;flex-direction:column;gap:7px">
+<div style="display:flex;align-items:center;gap:6px"><span class="ms" style="font-size:16px;color:#8a6400;font-variation-settings:'FILL' 1">push_pin</span><span style="flex:1;font-size:16px;font-weight:700">買い物</span><span style="font:400 11px 'JetBrains Mono';color:#5d6e6a">{{ progress }}</span></div>
+<div style="height:3px;border-radius:2px;background:#dde5e2;overflow:hidden"><div style="height:100%;background:#00897b;transition:width .25s;width:{{ pct }}"></div></div>
+<div style="display:flex;flex-direction:column"><sc-for list="{{ cardItems }}" as="it" hint-placeholder-count="3"><div style="display:flex;align-items:center;gap:12px;height:38px"><span onClick="{{ it.toggle }}" style="width:18px;height:18px;border-radius:5px;border:1.5px solid #8fa39e;box-sizing:border-box;flex:none;cursor:pointer" style-hover="border-color:#00897b;background:#e3f4ee"></span><span style="font-size:14px">{{ it.text }}</span></div></sc-for></div>
+<sc-if value="{{ hasMore }}" hint-placeholder-val="{{ false }}"><div style="font-size:11px;color:#5d6e6a">{{ moreLabel }}</div></sc-if>
+<sc-if value="{{ allDone }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#00796b"><span class="ms" style="font-size:16px">task_alt</span>すべて完了<span onClick="{{ reset }}" style="margin-left:auto;font:400 11px 'JetBrains Mono';color:#5d6e6a;cursor:pointer">リセット</span></div></sc-if>
+<div style="display:flex;gap:6px;font-size:11px"><span style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#fff4cc;color:#5c4300"><span class="ms" style="font-size:13px">alarm</span><span style="font-family:'JetBrains Mono'">10/10 19:00</span></span></div>
+</div>
+<div style="background:#ffffff;border:1px solid #dde5e2;border-radius:12px;padding:12px 14px 10px;display:flex;flex-direction:column;gap:7px">
+<div style="display:flex;align-items:center;gap:6px"><span style="flex:1;font-size:16px;font-weight:700">旅行の持ち物</span><span style="font:400 11px 'JetBrains Mono';color:#5d6e6a">2/6</span></div>
+<div style="height:3px;border-radius:2px;background:#dde5e2;overflow:hidden"><div style="height:100%;width:33%;background:#00897b"></div></div>
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;align-items:center;gap:12px;height:38px"><span style="width:18px;height:18px;border-radius:5px;border:1.5px solid #8fa39e;box-sizing:border-box;flex:none"></span><span style="font-size:14px">充電器</span></div>
+<div style="display:flex;align-items:center;gap:12px;height:38px"><span style="width:18px;height:18px;border-radius:5px;border:1.5px solid #8fa39e;box-sizing:border-box;flex:none"></span><span style="font-size:14px">パスポート</span></div>
+</div>
+<div style="font-size:11px;color:#5d6e6a">ほか 2 件 · 完了 2</div>
+<div style="display:flex;gap:6px;font-size:11px"><span style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#e8efed;color:#3d4d49"><span class="ms" style="font-size:13px">image</span>3</span></div>
+</div>
+<div style="background:#ffffff;border:1px solid #dde5e2;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px">
+<span style="font-size:16px;font-weight:700">引っ越しの手続き</span>
+<span style="font-size:13px;line-height:1.7;color:#5d6e6a">転出届は 2 週間前から。電気・ガス・水道の連絡先は契約書の裏。</span>
+</div>
+</div>
+<div style="position:absolute;right:16px;bottom:32px;width:58px;height:58px;border-radius:16px;background:#ffca28;color:#10201d;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.25)"><span class="ms" style="font-size:28px">add</span></div>
+</div>
+
+<div data-screen-label="端末 02 ウィジェット" style="position:absolute;inset:0;background-color:#1d3a36;background-image:radial-gradient(120% 70% at 20% 0%,#2b5a53 0%,transparent 60%),radial-gradient(90% 60% at 100% 100%,#3d3a1c 0%,transparent 70%);display:flex;flex-direction:column;align-items:center;border-radius:36px;overflow:hidden;transition:opacity .5s,transform .6s cubic-bezier(.2,.7,.2,1);opacity:{{ sc1.op }};transform:{{ sc1.tf }};pointer-events:{{ sc1.pe }}">
+<div style="width:100%;height:28px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 22px;box-sizing:border-box;font:500 12px 'JetBrains Mono';color:#ffffff"><span>09:41</span><span class="ms" style="font-size:16px">signal_cellular_alt wifi battery_full</span></div>
+<div style="width:100%;padding:36px 28px 0;box-sizing:border-box;display:flex;flex-direction:column;gap:4px;color:#ffffff"><span style="font:300 64px/1 'JetBrains Mono';letter-spacing:-.04em">09:41</span><span style="font-size:13px;opacity:.85">10月4日 日曜日</span></div>
+<div style="margin-top:28px;width:304px;background:#f3f5f4;border:1px solid #dde5e2;border-radius:20px;padding:14px 14px 8px;box-sizing:border-box;box-shadow:0 12px 32px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:4px;color:#0f1a18">
+<div style="display:flex;align-items:center;gap:8px"><span style="flex:1;font-size:15px;font-weight:700">買い物</span><span style="font:400 11px 'JetBrains Mono';color:#8a6400">{{ progress }}</span></div>
+<div style="height:3px;border-radius:2px;background:#dde5e2;overflow:hidden;margin:2px 0 4px"><div style="height:100%;background:#00897b;transition:width .25s;width:{{ pct }}"></div></div>
+<sc-for list="{{ widgetItems }}" as="it" hint-placeholder-count="5"><div onClick="{{ it.toggle }}" style="display:flex;align-items:center;gap:10px;height:34px;cursor:pointer;user-select:none;border-radius:8px" style-hover="background:#e8efed">
+<span style="width:18px;height:18px;border-radius:5px;box-sizing:border-box;flex:none;display:flex;align-items:center;justify-content:center;transition:background .15s;background:{{ it.bg }};border:{{ it.border }}"><span class="ms" style="font-size:14px;color:#ffffff;transition:transform .3s cubic-bezier(.3,1.6,.5,1);transform:scale({{ it.cs }})">check</span></span>
+<span style="font-size:14px;color:{{ it.color }};text-decoration:{{ it.deco }}">{{ it.text }}</span></div></sc-for>
+</div>
+<div style="position:absolute;bottom:34px;display:flex;gap:24px"><img src="assets/images/icon.png" alt="" style="width:52px;height:52px;border-radius:16px"><div style="width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,.16)"></div><div style="width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,.16)"></div><div style="width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,.16)"></div></div>
+</div>
+
+<div data-screen-label="端末 03 編集・同期" style="position:absolute;inset:0;background:#f3f5f4;display:flex;flex-direction:column;border-radius:36px;overflow:hidden;transition:opacity .5s,transform .6s cubic-bezier(.2,.7,.2,1);opacity:{{ sc2.op }};transform:{{ sc2.tf }};pointer-events:{{ sc2.pe }}">
+<div style="height:28px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font:500 12px 'JetBrains Mono';color:#0f1a18"><span>09:41</span><span class="ms" style="font-size:16px">signal_cellular_alt wifi battery_full</span></div>
+<div style="height:56px;flex:none;display:flex;align-items:center;padding:0 12px"><span class="ms" style="width:44px;height:44px;border-radius:12px;border:1px solid #dde5e2;display:flex;align-items:center;justify-content:center;font-size:20px;color:#3d4d49">arrow_back</span></div>
+<div style="flex:1;padding:4px 12px;display:flex;flex-direction:column;gap:10px">
+<div style="padding:0 6px;display:flex;flex-direction:column;gap:8px"><div style="font-size:25px;font-weight:700;line-height:1.3">買い物</div>
+<div style="display:flex;gap:6px;font-size:11px"><span style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#fff4cc;color:#5c4300"><span class="ms" style="font-size:13px">alarm</span><span style="font-family:'JetBrains Mono'">10/10 19:00 · 毎週</span></span><span style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#e8efed;color:#3d4d49"><span class="ms" style="font-size:13px;font-variation-settings:'FILL' 1">push_pin</span>ピン留め</span></div></div>
+<div style="background:#ffffff;border:1px solid #dde5e2;border-radius:12px;padding:10px 14px">
+<div style="display:flex;align-items:center;gap:10px;padding:2px 0 6px"><div style="flex:1;height:3px;border-radius:2px;background:#dde5e2;overflow:hidden"><div style="height:100%;background:#00897b;transition:width .25s;width:{{ pct }}"></div></div><span style="font:400 11px 'JetBrains Mono';color:#5d6e6a">{{ progress }}</span></div>
+<sc-for list="{{ openList }}" as="it" hint-placeholder-count="4"><div style="display:flex;align-items:center;gap:12px;height:44px"><span onClick="{{ it.toggle }}" style="width:20px;height:20px;border-radius:6px;border:1.5px solid #8fa39e;box-sizing:border-box;flex:none;cursor:pointer" style-hover="border-color:#00897b;background:#e3f4ee"></span><span style="flex:1;font-size:15px">{{ it.text }}</span><span class="ms" style="font-size:18px;color:#b7c4c1">drag_indicator</span></div></sc-for>
+<div style="display:flex;align-items:center;gap:12px;height:44px;color:#00796b;font-size:14px;font-weight:500"><span class="ms" style="font-size:20px">add</span>項目を追加</div>
+<div style="height:1px;background:#dde5e2;margin:2px 0"></div>
+<div style="display:flex;align-items:center;justify-content:space-between;height:36px;font-size:12px;color:#5d6e6a"><span>完了 {{ doneCount }} 件</span><span class="ms" style="font-size:18px">expand_less</span></div>
+<sc-for list="{{ doneList }}" as="it" hint-placeholder-count="1"><div style="display:flex;align-items:center;gap:12px;height:40px"><span onClick="{{ it.toggle }}" style="width:20px;height:20px;border-radius:6px;background:#00897b;flex:none;display:flex;align-items:center;justify-content:center;cursor:pointer"><span class="ms" style="font-size:15px;color:#ffffff">check</span></span><span style="font-size:14px;color:#94a5a1;text-decoration:line-through">{{ it.text }}</span></div></sc-for>
+</div>
+<div style="padding:0 6px;font:400 10px 'JetBrains Mono','IBM Plex Sans JP';display:flex;align-items:center;gap:6px;transition:color .3s;color:{{ syncColor }}"><span class="ms" style="font-size:13px">{{ syncIcon }}</span>{{ syncLabel }}</div>
+</div>
+<div style="flex:none;height:62px;background:#ffffff;border-top:1px solid #dde5e2;display:flex;align-items:center;justify-content:space-around;padding:0 8px 10px">
+<span class="ms" style="font-size:24px;padding:10px;color:#3d4d49">add_photo_alternate</span><span class="ms" style="font-size:24px;padding:10px;color:#3d4d49">alarm_add</span><span class="ms" style="font-size:24px;padding:10px;color:#8a6400;font-variation-settings:'FILL' 1">push_pin</span><span class="ms" style="font-size:24px;padding:10px;color:#3d4d49">delete</span></div>
+</div>
+
+<div data-screen-label="端末 04 画像" style="position:absolute;inset:0;background:#f3f5f4;display:flex;flex-direction:column;border-radius:36px;overflow:hidden;transition:opacity .5s,transform .6s cubic-bezier(.2,.7,.2,1);opacity:{{ sc3.op }};transform:{{ sc3.tf }};pointer-events:{{ sc3.pe }}">
+<div style="height:28px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font:500 12px 'JetBrains Mono';color:#0f1a18"><span>09:41</span><span class="ms" style="font-size:16px">signal_cellular_alt wifi battery_full</span></div>
+<div style="height:56px;flex:none;display:flex;align-items:center;padding:0 12px"><span class="ms" style="width:44px;height:44px;border-radius:12px;border:1px solid #dde5e2;display:flex;align-items:center;justify-content:center;font-size:20px;color:#3d4d49">arrow_back</span></div>
+<div style="flex:1;padding:4px 12px;display:flex;flex-direction:column;gap:10px">
+<div style="padding:0 6px;font-size:25px;font-weight:700;line-height:1.3">旅行の持ち物</div>
+<div style="background:#ffffff;border:1px solid #dde5e2;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:4px"><span style="font-size:11px;color:#5d6e6a;font-weight:600">メモ</span><span style="font-size:15px;line-height:1.67">ホテルのチェックインは 15 時から。予約の画面と地図を保存しておく。</span></div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:2px 0">
+<sc-for list="{{ thumbs }}" as="t" hint-placeholder-count="3"><div onClick="{{ t.open }}" style="aspect-ratio:1;border-radius:10px;border:1px solid #dde5e2;background:repeating-linear-gradient(135deg,#e8efed 0 6px,#dde5e2 6px 12px);display:flex;align-items:flex-end;padding:7px;box-sizing:border-box;font:400 9px 'JetBrains Mono';color:#5d6e6a;cursor:pointer;transition:transform .2s" style-hover="transform:scale(1.04)">{{ t.label }}</div></sc-for>
+<div style="aspect-ratio:1;border-radius:10px;border:1.5px dashed #b7c4c1;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#5d6e6a;text-align:center"><span class="ms" style="font-size:18px">wifi</span><span style="font-size:10px;line-height:1.3">Wi-Fi 接続時<br>に同期</span></div>
+</div>
+<div style="background:#ffffff;border:1px solid #dde5e2;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;font-size:12px">
+<div style="display:flex;justify-content:space-between"><span style="color:#5d6e6a">サムネイル</span><span style="color:#00796b">● 同期済み</span></div>
+<div style="display:flex;justify-content:space-between"><span style="color:#5d6e6a">元の画像</span><span style="color:#5c4300">○ Wi-Fi 接続時に同期</span></div>
+</div>
+</div>
+<div style="flex:none;height:62px;background:#ffffff;border-top:1px solid #dde5e2;display:flex;align-items:center;justify-content:space-around;padding:0 8px 10px">
+<span class="ms" style="font-size:24px;padding:10px;color:#00796b">add_photo_alternate</span><span class="ms" style="font-size:24px;padding:10px;color:#3d4d49">alarm_add</span><span class="ms" style="font-size:24px;padding:10px;color:#3d4d49">push_pin</span><span class="ms" style="font-size:24px;padding:10px;color:#3d4d49">delete</span></div>
+<sc-if value="{{ viewerOpen }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;background:#070a09;display:flex;flex-direction:column;color:#dfe8e5">
+<div style="height:28px;flex:none"></div>
+<div style="height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 12px"><span onClick="{{ closeViewer }}" class="ms" style="width:44px;height:44px;border-radius:12px;border:1px solid #22302d;display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer">close</span><span style="flex:1;text-align:center;font:400 12px 'JetBrains Mono'">{{ viewerLabel }}</span><span class="ms" style="width:44px;height:44px;border-radius:12px;border:1px solid #3a2420;display:flex;align-items:center;justify-content:center;font-size:20px;color:#ff8a75">delete</span></div>
+<div onClick="{{ nextViewer }}" style="flex:1;display:flex;align-items:center;justify-content:center;padding-bottom:24px;cursor:pointer"><div style="width:100%;height:420px;background:repeating-linear-gradient(135deg,#121817 0 10px,#161d1c 10px 20px);display:flex;align-items:center;justify-content:center;font:400 11px 'JetBrains Mono';color:#7c8f8a">{{ viewerName }}</div></div>
+<div style="flex:none;display:flex;gap:8px;justify-content:center;padding-bottom:40px"><sc-for list="{{ thumbs }}" as="t" hint-placeholder-count="3"><div onClick="{{ t.open }}" style="width:48px;height:48px;border-radius:10px;box-sizing:border-box;background:repeating-linear-gradient(135deg,#1b2523 0 5px,#202b29 5px 10px);cursor:pointer;border:{{ t.border }}"></div></sc-for></div>
+</div>
+</sc-if>
+</div>
+
+<div data-screen-label="端末 05 リマインド" style="position:absolute;inset:0;background:#f3f5f4;display:flex;flex-direction:column;border-radius:36px;overflow:hidden;transition:opacity .5s,transform .6s cubic-bezier(.2,.7,.2,1);opacity:{{ sc4.op }};transform:{{ sc4.tf }};pointer-events:{{ sc4.pe }}">
+<div style="height:28px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font:500 12px 'JetBrains Mono';color:#0f1a18"><span>09:41</span><span class="ms" style="font-size:16px">signal_cellular_alt wifi battery_full</span></div>
+<div style="height:56px;flex:none;display:flex;align-items:center;padding:0 12px"><span class="ms" style="width:44px;height:44px;border-radius:12px;border:1px solid #dde5e2;display:flex;align-items:center;justify-content:center;font-size:20px;color:#3d4d49">arrow_back</span></div>
+<div style="padding:4px 18px;display:flex;flex-direction:column;gap:12px"><div style="font-size:25px;font-weight:700">買い物</div><div style="background:#ffffff;border:1px solid #dde5e2;border-radius:12px;height:200px"></div></div>
+<div style="position:absolute;inset:0;background:rgba(16,32,29,.4)"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;background:#ffffff;border-top:1px solid #d3ddd9;border-radius:22px 22px 0 0;padding:10px 16px 30px;display:flex;flex-direction:column;gap:14px">
+<div style="width:36px;height:4px;border-radius:2px;background:#cfd9d5;align-self:center"></div>
+<span style="font-size:17px;font-weight:700">リマインドを追加</span>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+<div style="background:#f3f5f4;border:1px solid #dde5e2;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:4px"><span style="font-size:11px;color:#5d6e6a;display:flex;align-items:center;gap:4px"><span class="ms" style="font-size:14px">calendar_today</span>日付</span><span style="font:700 16px 'JetBrains Mono','IBM Plex Sans JP'">10/10 (土)</span></div>
+<div style="background:#f3f5f4;border:1px solid #00897b;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:4px"><span style="font-size:11px;color:#5d6e6a;display:flex;align-items:center;gap:4px"><span class="ms" style="font-size:14px">schedule</span>時刻</span><span style="font:700 16px 'JetBrains Mono'">19:00</span></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;font-weight:600;color:#5d6e6a">繰り返し</span>
+<div style="display:flex;border:1px solid #dde5e2;border-radius:10px;overflow:hidden"><sc-for list="{{ repeats }}" as="r" hint-placeholder-count="5"><span onClick="{{ r.select }}" style="flex:1;height:38px;display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;transition:background .2s,color .2s;border-left:{{ r.bl }};background:{{ r.bg }};color:{{ r.fg }}">{{ r.label }}</span></sc-for></div></div>
+<div style="font-size:12px;color:#3d4d49;background:#f3f5f4;border-radius:8px;padding:8px 10px;display:flex;gap:8px;white-space:nowrap"><span style="color:#5d6e6a">次回</span><span style="font-family:'JetBrains Mono','IBM Plex Sans JP';color:#5c4300">10/10 (土) 19:00{{ repeatSuffix }}</span></div>
+<div style="display:flex;gap:8px"><div style="flex:1;height:46px;border-radius:10px;border:1px solid #cfd9d5;display:flex;align-items:center;justify-content:center;font-size:14px;color:#3d4d49">キャンセル</div><div style="flex:1;height:46px;border-radius:10px;background:#ffca28;color:#10201d;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700">追加</div></div>
+</div>
+<div style="position:absolute;left:10px;right:10px;top:34px;background:rgba(255,255,255,.97);border-radius:20px;padding:12px 14px;display:flex;gap:12px;align-items:flex-start;box-shadow:0 12px 30px rgba(0,0,0,.22);transition:transform .7s cubic-bezier(.2,1.2,.3,1),opacity .4s;transform:translateY({{ notifY }});opacity:{{ notifOp }}">
+<img src="assets/images/icon.png" alt="" style="width:36px;height:36px;border-radius:10px;flex:none">
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><div style="display:flex;justify-content:space-between;font:400 11px 'JetBrains Mono','IBM Plex Sans JP';color:#5d6e6a"><span>kakitome</span><span>19:00</span></div><span style="font-size:14px;font-weight:700">買い物</span><span style="font-size:13px;color:#3d4d49;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ notifBody }}</span></div>
+</div>
+</div>
+
+</div>
+</div>
+</div>
+
+<div style="position:absolute;left:50%;top:50%;z-index:3;transition:transform .8s cubic-bezier(.2,.7,.2,1),opacity .5s,width .8s cubic-bezier(.2,.7,.2,1);width:{{ bW }};opacity:{{ bOp }};transform:{{ bTf }};pointer-events:{{ bPe }}">
+<div style="background:#ffffff;border:1px solid #d3ddd9;border-radius:14px;overflow:hidden;box-shadow:0 30px 60px -20px rgba(15,26,24,.35)">
+<div style="height:34px;display:flex;align-items:center;gap:6px;padding:0 12px;border-bottom:1px solid #dde5e2;background:#f3f5f4"><span style="width:9px;height:9px;border-radius:50%;background:#cfd9d5"></span><span style="width:9px;height:9px;border-radius:50%;background:#cfd9d5"></span><span style="width:9px;height:9px;border-radius:50%;background:#cfd9d5"></span><span style="flex:1;text-align:center;font:400 11px 'JetBrains Mono';color:#5d6e6a">kakitome · Web</span></div>
+<sc-if value="{{ bList }}" hint-placeholder-val="{{ true }}">
+<div style="padding:14px 16px 12px;display:flex;flex-direction:column;gap:2px">
+<div style="display:flex;align-items:center;gap:8px;padding-bottom:6px"><span style="flex:1;font-size:15px;font-weight:700">買い物</span><span style="font:400 11px 'JetBrains Mono';color:#5d6e6a">{{ progress }}</span></div>
+<div style="height:3px;border-radius:2px;background:#dde5e2;overflow:hidden;margin-bottom:4px"><div style="height:100%;background:#00897b;transition:width .25s;width:{{ pct }}"></div></div>
+<sc-for list="{{ widgetItems }}" as="it" hint-placeholder-count="5"><div onClick="{{ it.toggle }}" style="display:flex;align-items:center;gap:10px;height:32px;cursor:pointer;user-select:none"><span style="width:16px;height:16px;border-radius:5px;box-sizing:border-box;flex:none;display:flex;align-items:center;justify-content:center;transition:background .15s;background:{{ it.bg }};border:{{ it.border }}"><span class="ms" style="font-size:13px;color:#ffffff;transition:transform .3s cubic-bezier(.3,1.6,.5,1);transform:scale({{ it.cs }})">check</span></span><span style="font-size:13px;color:{{ it.color }};text-decoration:{{ it.deco }}">{{ it.text }}</span></div></sc-for>
+<div style="margin-top:6px;font:400 10px 'JetBrains Mono','IBM Plex Sans JP';display:flex;align-items:center;gap:6px;transition:color .3s;color:{{ syncColor }}"><span class="ms" style="font-size:13px">{{ syncIcon }}</span>{{ syncLabel }}</div>
+</div>
+</sc-if>
+<sc-if value="{{ bImport }}" hint-placeholder-val="{{ false }}">
+<div style="padding:22px 24px 24px;display:flex;flex-direction:column;gap:16px">
+<span style="font-size:12px;font-weight:600;color:#5d6e6a">設定 › 取り込み</span>
+<div style="display:flex;align-items:center;gap:14px"><span class="ms" style="font-size:22px;color:#5d6e6a">move_to_inbox</span><div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:15px;font-weight:700">Google Keep から取り込む</span><span style="font-size:12px;color:#5d6e6a">Takeout の ZIP か JSON を選ぶ（取り込み済みは重複しない）</span></div></div>
+<div onClick="{{ runImport }}" style="border:1.5px dashed #b7c4c1;border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px;cursor:pointer;background:#f3f5f4;transition:border-color .2s" style-hover="border-color:#00897b">
+<div style="display:flex;align-items:center;gap:10px"><span class="ms" style="font-size:22px;color:#00796b">{{ impIcon }}</span><span style="flex:1;font:500 13px 'JetBrains Mono','IBM Plex Sans JP'">{{ impTitle }}</span><span style="font:400 11px 'JetBrains Mono';color:#5d6e6a">{{ impMeta }}</span></div>
+<div style="height:4px;border-radius:2px;background:#dde5e2;overflow:hidden"><div style="height:100%;background:#00897b;transition:width .08s linear;width:{{ impPct }}"></div></div>
+</div>
+<span style="font-size:12px;color:#5d6e6a;line-height:1.7">{{ impNote }}</span>
+</div>
+</sc-if>
+</div>
+</div>
+</div>
+
+<div style="grid-row:1;grid-column:1;position:relative;z-index:2;display:flex;flex-direction:column;pointer-events:none">
+<div data-step="0" style="min-height:100vh;display:flex;flex-direction:column;padding:48px 0 24px;box-sizing:border-box;justify-content:{{ stepJustify }}">
+<div data-reveal="0" style="pointer-events:auto;display:flex;flex-direction:column;gap:18px;max-width:520px;box-sizing:border-box;background:{{ cardBg }};padding:{{ cardPad }};border-radius:16px;box-shadow:{{ cardShadow }}">
+<span style="font:500 12px 'JetBrains Mono';color:#00796b">01 — シンプルな画面</span>
+<h2 style="margin:0;font-size:clamp(30px,4.2vw,56px);line-height:1.25;letter-spacing:-.02em;text-wrap:pretty;word-break:keep-all;overflow-wrap:anywhere">開かずに、<wbr>一覧でチェック</h2>
+<p style="margin:0;font-size:17px;line-height:1.9;color:#3d4d49;text-wrap:pretty">メモ一覧のカードに、進み具合と未完了の項目を表示します。チェックした項目はその場でカードから消え、次の項目が繰り上がります。</p>
+<span style="font:500 12px 'JetBrains Mono','IBM Plex Sans JP';color:#5d6e6a;display:flex;align-items:center;gap:6px"><span class="ms" style="font-size:16px;color:#00796b">touch_app</span>「買い物」のチェックボックスを押せます</span>
+</div>
+</div>
+<div data-step="1" style="min-height:100vh;display:flex;flex-direction:column;padding:48px 0 24px;box-sizing:border-box;justify-content:{{ stepJustify }}">
+<div data-reveal="0" style="pointer-events:auto;display:flex;flex-direction:column;gap:18px;max-width:520px;box-sizing:border-box;background:{{ cardBg }};padding:{{ cardPad }};border-radius:16px;box-shadow:{{ cardShadow }}">
+<span style="font:500 12px 'JetBrains Mono';color:#00796b">02 — ウィジェット</span>
+<h2 style="margin:0;font-size:clamp(30px,4.2vw,56px);line-height:1.25;letter-spacing:-.02em;text-wrap:pretty;word-break:keep-all;overflow-wrap:anywhere">ホーム画面から、<wbr>そのまま</h2>
+<p style="margin:0;font-size:17px;line-height:1.9;color:#3d4d49;text-wrap:pretty">選んだメモのチェックリストをホーム画面に置けます。項目を押すと完了になり、アプリにもすぐ反映されます。</p>
+<span style="font:500 12px 'JetBrains Mono','IBM Plex Sans JP';color:#5d6e6a;display:flex;align-items:center;gap:6px"><span class="ms" style="font-size:16px;color:#00796b">touch_app</span>ウィジェットの項目を押せます</span>
+</div>
+</div>
+<div data-step="2" style="min-height:100vh;display:flex;flex-direction:column;padding:48px 0 24px;box-sizing:border-box;justify-content:{{ stepJustify }}">
+<div data-reveal="0" style="pointer-events:auto;display:flex;flex-direction:column;gap:18px;max-width:520px;box-sizing:border-box;background:{{ cardBg }};padding:{{ cardPad }};border-radius:16px;box-shadow:{{ cardShadow }}">
+<span style="font:500 12px 'JetBrains Mono';color:#00796b">03 — 複数の端末で同期</span>
+<h2 style="margin:0;font-size:clamp(30px,4.2vw,56px);line-height:1.25;letter-spacing:-.02em;text-wrap:pretty;word-break:keep-all;overflow-wrap:anywhere">スマホと PC で、<wbr>同じメモ</h2>
+<p style="margin:0;font-size:17px;line-height:1.9;color:#3d4d49;text-wrap:pretty">Google アカウントでサインインすると、あなたの Google ドライブを通して端末間で同期します。2 台で同時に書き換えたときは、残す内容を選べます。</p>
+<span style="font:500 12px 'JetBrains Mono','IBM Plex Sans JP';color:#5d6e6a;display:flex;align-items:center;gap:6px"><span class="ms" style="font-size:16px;color:#00796b">touch_app</span>どちらかでチェックすると、もう一方にも反映されます</span>
+</div>
+</div>
+<div data-step="3" style="min-height:100vh;display:flex;flex-direction:column;padding:48px 0 24px;box-sizing:border-box;justify-content:{{ stepJustify }}">
+<div data-reveal="0" style="pointer-events:auto;display:flex;flex-direction:column;gap:18px;max-width:520px;box-sizing:border-box;background:{{ cardBg }};padding:{{ cardPad }};border-radius:16px;box-shadow:{{ cardShadow }}">
+<span style="font:500 12px 'JetBrains Mono';color:#00796b">04 — 画像</span>
+<h2 style="margin:0;font-size:clamp(30px,4.2vw,56px);line-height:1.25;letter-spacing:-.02em;text-wrap:pretty;word-break:keep-all;overflow-wrap:anywhere">写真も、<wbr>メモと一緒に</h2>
+<p style="margin:0;font-size:17px;line-height:1.9;color:#3d4d49;text-wrap:pretty">メモに画像を付けられます。モバイル回線ではサムネイルだけを同期し、元の画像は Wi-Fi につながったときに送ります。</p>
+<span style="font:500 12px 'JetBrains Mono','IBM Plex Sans JP';color:#5d6e6a;display:flex;align-items:center;gap:6px"><span class="ms" style="font-size:16px;color:#00796b">touch_app</span>サムネイルを押すと全画面で表示します</span>
+</div>
+</div>
+<div data-step="4" style="min-height:100vh;display:flex;flex-direction:column;padding:48px 0 24px;box-sizing:border-box;justify-content:{{ stepJustify }}">
+<div data-reveal="0" style="pointer-events:auto;display:flex;flex-direction:column;gap:18px;max-width:520px;box-sizing:border-box;background:{{ cardBg }};padding:{{ cardPad }};border-radius:16px;box-shadow:{{ cardShadow }}">
+<span style="font:500 12px 'JetBrains Mono';color:#00796b">05 — リマインド</span>
+<h2 style="margin:0;font-size:clamp(30px,4.2vw,56px);line-height:1.25;letter-spacing:-.02em;text-wrap:pretty;word-break:keep-all;overflow-wrap:anywhere">決めた時刻に、<wbr>通知で</h2>
+<p style="margin:0;font-size:17px;line-height:1.9;color:#3d4d49;text-wrap:pretty">メモごとに日時を設定して通知を受け取れます。毎日・毎週・毎月・毎年の繰り返しにも対応しています。</p>
+<span style="font:500 12px 'JetBrains Mono','IBM Plex Sans JP';color:#5d6e6a;display:flex;align-items:center;gap:6px"><span class="ms" style="font-size:16px;color:#00796b">touch_app</span>繰り返しを切り替えられます</span>
+</div>
+</div>
+<div id="keep" data-step="5" style="min-height:100vh;display:flex;flex-direction:column;padding:48px 0 24px;box-sizing:border-box;justify-content:{{ stepJustify }}">
+<div data-reveal="0" style="pointer-events:auto;display:flex;flex-direction:column;gap:18px;max-width:520px;box-sizing:border-box;background:{{ cardBg }};padding:{{ cardPad }};border-radius:16px;box-shadow:{{ cardShadow }}">
+<span style="font:500 12px 'JetBrains Mono';color:#00796b">06 — Google Keep から取り込み</span>
+<h2 style="margin:0;font-size:clamp(30px,4.2vw,56px);line-height:1.25;letter-spacing:-.02em;text-wrap:pretty;word-break:keep-all;overflow-wrap:anywhere">Keep のメモを、<wbr>そのまま</h2>
+<p style="margin:0;font-size:17px;line-height:1.9;color:#3d4d49;text-wrap:pretty">Google Takeout で書き出した ZIP を、Web 版の設定で読み込みます。チェックリスト・画像・ピン留め・ラベルを引き継ぎ、何度読み込んでも重複しません。</p>
+<span style="font:500 12px 'JetBrains Mono','IBM Plex Sans JP';color:#5d6e6a;display:flex;align-items:center;gap:6px"><span class="ms" style="font-size:16px;color:#00796b">touch_app</span>ファイルの枠を押すと取り込みが始まります</span>
+</div>
+</div>
+</div>
+</section>
+
+<section id="download" data-screen-label="ダウンロード" style="background:#0d1211;color:#dfe8e5;overflow:hidden;margin-top:48px">
+<div style="max-width:1280px;margin:0 auto;padding:120px 24px 0;display:flex;flex-direction:column;gap:40px">
+<div data-reveal="0" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:40px;align-items:end">
+<div style="display:flex;flex-direction:column;gap:20px">
+<span style="font:500 12px 'JetBrains Mono';color:#4dd0c0">ダウンロード</span>
+<h2 style="margin:0;font-size:clamp(34px,5vw,64px);line-height:1.2;letter-spacing:-.02em;color:#ffffff">今日のリストから、<br>はじめる</h2>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px;align-items:flex-start;justify-self:end">
+<div style="display:flex;flex-wrap:wrap;gap:10px">
+<a href="#" style="height:54px;padding:0 24px;border-radius:12px;background:#ffca28;color:#0d1211;font-size:15px;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:8px;transition:transform .2s" style-hover="transform:translateY(-2px);color:#0d1211"><span class="ms" style="font-size:20px">android</span>Android 版をダウンロード</a>
+<a href="#" style="height:54px;padding:0 20px;border-radius:12px;border:1px solid #33433f;color:#dfe8e5;font-size:15px;text-decoration:none;display:flex;align-items:center;gap:8px" style-hover="border-color:#8b9d98;color:#ffffff"><span class="ms" style="font-size:20px">open_in_new</span>Web 版を開く</a>
+</div>
+<span style="font-size:12px;color:#8b9d98">Google Keep からの取り込みは Web 版で行えます。</span>
+</div>
+</div>
+<div style="display:flex;align-items:flex-end;gap:.06em;font-size:clamp(72px,19vw,280px);font-weight:700;line-height:.8;letter-spacing:-.05em;color:#26a69a;margin:40px 0 -.12em;user-select:none">
+<span>kakitome</span><span style="width:.2em;height:.2em;border-radius:.05em;background:#ffca28;flex:none;margin-bottom:.14em"></span>
+</div>
+</div>
+<div style="border-top:1px solid #22302d;position:relative;background:#0d1211">
+<div style="max-width:1280px;margin:0 auto;padding:22px 24px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;font-size:12px;color:#8b9d98">
+<span style="font-family:'JetBrains Mono'">kakitome 1.0.1</span>
+<span style="display:flex;gap:20px"><a href="privacy" style="color:#4dd0c0">プライバシーポリシー</a><a href="licenses" style="color:#4dd0c0">オープンソースライセンス</a><a href="https://github.com/Suyama-Daichi/kakitome" style="color:#4dd0c0">GitHub</a></span>
+</div>
+</div>
+</section>
+</template>
+<script>
+// 小さなテンプレートエンジン。デザイン（.dc.html）の {{ path }}・<sc-if>・<sc-for>・onClick・style-hover だけを扱う
+(() => {
+  const get = (scope, path) => path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), scope);
+  const BIND = /\{\{\s*([\w.]+)\s*\}\}/g;
+  const interp = (s, scope) => s.replace(BIND, (_, p) => { const v = get(scope, p); return v == null ? '' : v; });
+  const only = (s) => { const m = /^\s*\{\{\s*([\w.]+)\s*\}\}\s*$/.exec(s); return m && m[1]; };
+  const has = (s) => s.includes('{{');
+
+  // build: テンプレートのノードから、DOM と update(scope) を作る
+  function build(node, scope) {
+    if (node.nodeType === 3) {
+      const t = node.textContent;
+      const dom = document.createTextNode(has(t) ? interp(t, scope) : t);
+      return { dom, update: has(t) ? (sc) => { const v = interp(t, sc); if (dom.textContent !== v) dom.textContent = v; } : null };
+    }
+    if (node.nodeType !== 1) return { dom: null, update: null };
+    const tag = node.tagName.toLowerCase();
+
+    if (tag === 'sc-if') {
+      const path = only(node.getAttribute('value'));
+      const dom = document.createElement('div');
+      dom.style.display = 'contents';
+      let kids = null;
+      return {
+        dom,
+        update(sc) {
+          const on = !!get(sc, path);
+          if (on && !kids) { kids = buildKids(node, sc, dom); }
+          else if (!on && kids) { dom.textContent = ''; kids = null; }
+          if (kids) kids.forEach((k) => k.update && k.update(sc));
+        },
+      };
+    }
+
+    if (tag === 'sc-for') {
+      const path = only(node.getAttribute('list'));
+      const as = node.getAttribute('as');
+      const dom = document.createElement('div');
+      dom.style.display = 'contents';
+      const rows = [];
+      return {
+        dom,
+        update(sc) {
+          const list = get(sc, path) || [];
+          while (rows.length < list.length) {
+            const holder = document.createElement('div');
+            holder.style.display = 'contents';
+            dom.appendChild(holder);
+            rows.push({ holder, kids: buildKids(node, { ...sc, [as]: list[rows.length] }, holder) });
+          }
+          while (rows.length > list.length) rows.pop().holder.remove();
+          rows.forEach((r, i) => r.kids.forEach((k) => k.update && k.update({ ...sc, [as]: list[i] })));
+        },
+      };
+    }
+
+    const el = document.createElement(tag);
+    const binds = [];
+    let hover = null, hovered = false, scopeNow = scope, baseStyle = '';
+    const clicks = [];
+    for (const a of node.attributes) {
+      if (/-placeholder-(val|count)$/.test(a.name)) continue;
+      if (a.name === 'style-hover') { hover = a.value; continue; }
+      if (a.name === 'onclick') { const p = only(a.value); el.addEventListener('click', (e) => { const f = get(scopeNow, p); if (f) f(e); }); continue; }
+      if (has(a.value)) binds.push(a); else el.setAttribute(a.name, a.value);
+    }
+    const applyStyle = () => { el.setAttribute('style', baseStyle + (hover && hovered ? ';' + hover : '')); };
+    if (hover) {
+      el.addEventListener('mouseenter', () => { hovered = true; applyStyle(); });
+      el.addEventListener('mouseleave', () => { hovered = false; applyStyle(); });
+    }
+    const kids = buildKids(node, scope, el);
+    const last = {};
+    const update = (sc) => {
+      scopeNow = sc;
+      for (const a of binds) {
+        const v = interp(a.value, sc);
+        if (last[a.name] === v) continue;
+        last[a.name] = v;
+        if (a.name === 'style') { baseStyle = v; applyStyle(); } else el.setAttribute(a.name, v);
+      }
+      kids.forEach((k) => k.update && k.update(sc));
+    };
+    // style が静的で style-hover だけある場合
+    if (hover && !binds.some((a) => a.name === 'style')) baseStyle = el.getAttribute('style') || '';
+    return { dom: el, update };
+  }
+
+  function buildKids(node, scope, parentDom) {
+    const kids = [];
+    for (const c of node.childNodes) {
+      const b = build(c, scope);
+      if (b.dom) parentDom.appendChild(b.dom);
+      kids.push(b);
+    }
+    return kids;
+  }
+
+  window.mountTemplate = (tpl, root, scope) => {
+    const kids = buildKids(tpl.content ? tpl.content : tpl, scope, root);
+    return (sc) => kids.forEach((k) => k.update && k.update(sc));
+  };
+
+  // デザインのコンポーネント（DCLogic）と同じ形の最小の基底クラス
+  window.DCLogic = class {
+    setState(p) {
+      const patch = typeof p === 'function' ? p(this.state) : p;
+      this.state = { ...this.state, ...patch };
+      if (this.update) this.update(this.renderVals());
+    }
+  };
+})();
+
+</script>
+<script>
+
+const INIT = [
+  { id: 1, text: '牛乳', done: false },
+  { id: 2, text: '卵', done: false },
+  { id: 3, text: '食パン', done: true },
+  { id: 4, text: 'トマト', done: false },
+  { id: 5, text: '洗剤', done: false },
+];
+const REPEATS = ['なし', '毎日', '毎週', '毎月', '毎年'];
+const NAMES = ['シンプルな画面', 'ウィジェット', '同期', '画像', 'リマインド', 'Google Keep'];
+const PHOTOS = ['hotel.jpg', 'map.png', 'ticket.jpg'];
+class Component extends DCLogic {
+  state = { items: INIT, hero: [false, false, false], touched: false, active: 0, vw: 1280, vh: 800, repeat: '毎週', notif: false, sync: 'idle', syncedAt: '09:38', viewer: -1, imp: 'idle', impPct: 0 };
+  componentDidMount() {
+    this.onResize = () => this.setState({ vw: window.innerWidth, vh: window.innerHeight });
+    this.onScroll = () => {
+      let a = 0;
+      document.querySelectorAll('[data-step]').forEach((el, i) => { if (el.getBoundingClientRect().top < window.innerHeight * 0.5) a = i; });
+      if (window.__kkStep != null) a = window.__kkStep;
+      if (a !== this.state.active) {
+        clearTimeout(this.nt);
+        this.setState({ active: a, notif: false, viewer: -1 });
+        if (a === 4) this.nt = setTimeout(() => this.setState({ notif: true }), 650);
+      }
+    };
+    window.addEventListener('resize', this.onResize);
+    window.addEventListener('scroll', this.onScroll, true);
+    this.onResize(); this.onScroll();
+    this.io = new IntersectionObserver(es => es.forEach(e => {
+      if (!e.isIntersecting) return;
+      const el = e.target, d = el.dataset.reveal || 0;
+      el.style.transition = `opacity 1s cubic-bezier(.2,.7,.2,1) ${d}ms, transform 1s cubic-bezier(.2,.7,.2,1) ${d}ms`;
+      el.style.opacity = '1'; el.style.transform = 'none';
+      this.io.unobserve(el);
+    }), { threshold: 0.12 });
+    requestAnimationFrame(() => document.querySelectorAll('[data-reveal]').forEach(el => {
+      el.style.opacity = '0'; el.style.transform = 'translateY(28px)'; this.io.observe(el);
+    }));
+    this.ht = setTimeout(() => { if (!this.state.touched) this.setState(s => ({ hero: [true, s.hero[1], s.hero[2]] })); }, 1500);
+  }
+  componentWillUnmount() {
+    window.removeEventListener('resize', this.onResize);
+    window.removeEventListener('scroll', this.onScroll, true);
+    this.io && this.io.disconnect();
+    [this.nt, this.ht, this.st].forEach(clearTimeout); clearInterval(this.it);
+  }
+  toggleItem(id) {
+    clearTimeout(this.st);
+    this.setState(s => ({ items: s.items.map(i => i.id === id ? { ...i, done: !i.done } : i), sync: 'busy' }));
+    this.st = setTimeout(() => this.setState({ sync: 'idle', syncedAt: 'たった今' }), 800);
+  }
+  runImport() {
+    if (this.state.imp === 'run') return;
+    if (this.state.imp === 'done') return this.setState({ imp: 'idle', impPct: 0 });
+    this.setState({ imp: 'run', impPct: 0 });
+    clearInterval(this.it);
+    this.it = setInterval(() => {
+      const p = Math.min(100, this.state.impPct + 3);
+      this.setState({ impPct: p, imp: p >= 100 ? 'done' : 'run' });
+      if (p >= 100) clearInterval(this.it);
+    }, 50);
+  }
+  renderVals() {
+    const { items, hero, touched, active, vw, vh, repeat, notif, sync, syncedAt, viewer, imp, impPct } = this.state;
+    const narrow = vw < 820;
+    const open = items.filter(i => !i.done), doneI = items.filter(i => i.done);
+    const view = i => ({
+      text: i.text, toggle: () => this.toggleItem(i.id),
+      bg: i.done ? '#00897b' : 'transparent', border: i.done ? '1.5px solid #00897b' : '1.5px solid #8fa39e',
+      cs: i.done ? 1 : 0, color: i.done ? '#94a5a1' : '#0f1a18', deco: i.done ? 'line-through' : 'none',
+    });
+    const firstOff = hero.indexOf(false);
+    const heroRow = i => {
+      const on = hero[i];
+      return {
+        toggle: () => this.setState(s => { const h = [...s.hero]; h[i] = !h[i]; return { hero: h, touched: true }; }),
+        bg: on ? '#00897b' : 'transparent', bc: on ? '#00897b' : '#0f1a18', cs: on ? 1 : 0.3, co: on ? 1 : 0,
+        color: on ? '#94a5a1' : '#0f1a18', lw: on ? 'calc(100% + .08em)' : '0%',
+        hint: !narrow && i === firstOff && hero.filter(Boolean).length < 2,
+      };
+    };
+    const heroN = hero.filter(Boolean).length;
+    // stage geometry
+    const s = narrow ? Math.min((vh * 0.5) / 776, (vw - 48) / 376) : Math.min(1, (vh - 170) / 776);
+    const pW = 376 * s, pH = 776 * s;
+    const colW = narrow ? vw - 48 : ((Math.min(vw, 1280) - 48 - 48) * 6) / 11;
+    const shown = Math.min(active, 4);
+    const sc = i => ({ op: shown === i ? 1 : 0, tf: shown === i ? 'none' : 'scale(.97)', pe: shown === i ? 'auto' : 'none' });
+    const shift = narrow ? 30 : 44;
+    let phoneTf = 'none', phoneOp = 1;
+    if (active === 2) phoneTf = `translateX(${shift}px)`;
+    if (active === 5) { phoneTf = 'translateX(80px) scale(.92)'; phoneOp = 0; }
+    let bW, tx, ty, bOp = 0;
+    const smallW = narrow ? Math.min(210, vw * 0.5) : Math.min(270, colW * 0.5);
+    if (active === 5) { bW = narrow ? Math.min(vw - 40, 420) : Math.min(colW - 20, 540); tx = 0; ty = 0; bOp = 1; }
+    else { bW = smallW; tx = -pW / 2 - bW / 2 + shift + (narrow ? 60 : 70); ty = pH * 0.22 + (active === 2 ? 0 : 40); bOp = active === 2 ? 1 : 0; }
+    const impTitle = imp === 'idle' ? 'takeout-20261004.zip' : imp === 'run' ? '取り込んでいます…' : '42 件のメモを取り込みました';
+    return {
+      h0: heroRow(0), h1: heroRow(1), h2: heroRow(2),
+      heroCount: heroN === 3 ? 'すべて完了' : `完了 ${heroN}/3`,
+      heroCountIcon: heroN === 3 ? 'task_alt' : 'checklist', heroCountColor: heroN === 3 ? '#00796b' : '#5d6e6a',
+      progress: `${doneI.length}/${items.length}`, pct: `${(doneI.length / items.length) * 100}%`,
+      allDone: open.length === 0, reset: () => this.setState({ items: INIT }),
+      cardItems: open.slice(0, 3).map(view), hasMore: open.length > 3,
+      moreLabel: `ほか ${open.length - 3} 件 · 完了 ${doneI.length}`,
+      totalOpen: open.length + 4, totalDone: doneI.length + 2,
+      widgetItems: [...open, ...doneI].map(view), openList: open.map(view), doneList: doneI.map(view), doneCount: doneI.length,
+      syncLabel: sync === 'busy' ? '同期しています…' : `${syncedAt} に更新 · 同期済み`,
+      syncColor: sync === 'busy' ? '#5c4300' : '#00796b', syncIcon: sync === 'busy' ? 'sync' : 'cloud_done',
+      repeats: REPEATS.map((r, idx) => ({ label: r, select: () => this.setState({ repeat: r }), bg: r === repeat ? '#00897b' : 'transparent', fg: r === repeat ? '#ffffff' : '#3d4d49', bl: idx === 0 ? 'none' : '1px solid #dde5e2' })),
+      repeatSuffix: repeat === 'なし' ? '' : ` · ${repeat}`,
+      notifY: notif ? '0' : '-150%', notifOp: notif ? 1 : 0,
+      notifBody: open.length ? open.slice(0, 2).map(i => i.text).join('・') + (open.length > 2 ? ` ほか ${open.length - 2} 件` : '') : 'すべて完了しています',
+      thumbs: PHOTOS.map((p, i) => ({ label: 'photo', open: () => this.setState({ viewer: i }), border: viewer === i ? '2px solid #ffca28' : '1px solid #22302d' })),
+      viewerOpen: viewer >= 0, viewerLabel: `${viewer + 1} / 3`, viewerName: PHOTOS[viewer] || '',
+      closeViewer: () => this.setState({ viewer: -1 }), nextViewer: () => this.setState(st => ({ viewer: (st.viewer + 1) % 3 })),
+      runImport: () => this.runImport(), impPct: `${impPct}%`, impTitle,
+      impIcon: imp === 'done' ? 'task_alt' : imp === 'run' ? 'hourglass_top' : 'folder_zip',
+      impMeta: imp === 'idle' ? 'ZIP' : `${impPct}%`,
+      impNote: imp === 'done' ? '同期をオンにしているので、スマホにも届きます。もう一度押すと最初に戻ります。' : 'チェックリスト・画像・ピン留め・ラベルを引き継ぎます。',
+      wide: !narrow,
+      gridCols: narrow ? 'minmax(0,1fr)' : 'minmax(0,5fr) minmax(0,6fr)',
+      stageCol: narrow ? '1' : '2', stageTop: narrow ? '68px' : '60px', stageH: narrow ? `${pH + 24}px` : 'calc(100vh - 60px)',
+      stepJustify: narrow ? 'flex-end' : 'center',
+      cardBg: narrow ? '#ffffff' : 'transparent', cardPad: narrow ? '22px' : '0', cardShadow: narrow ? '0 10px 40px rgba(15,26,24,.12), 0 0 0 1px #dde5e2' : 'none',
+      stepNo: String(active + 1).padStart(2, '0'), stepName: NAMES[active],
+      ticks: NAMES.map((n, i) => ({ bg: i === active ? '#00897b' : i < active ? '#8fa39e' : '#dde5e2' })),
+      phoneW: `${pW}px`, phoneH: `${pH}px`, phoneScale: s, phoneTf, phoneOp,
+      sc0: sc(0), sc1: sc(1), sc2: sc(2), sc3: sc(3), sc4: sc(4),
+      bW: `${bW}px`, bOp, bPe: bOp ? 'auto' : 'none',
+      bTf: `translate(-50%,-50%) translate(${tx}px,${ty}px)`,
+      bList: active !== 5, bImport: active === 5,
+    };
+  }
+}
+
+(() => {
+  const c = new Component();
+  const root = document.getElementById("root");
+  c.update = window.mountTemplate(document.getElementById("tpl"), root, c.renderVals());
+  c.update(c.renderVals());
+  c.componentDidMount();
+})();
+</script>
+</body>
+</html>
