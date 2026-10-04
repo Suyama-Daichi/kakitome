@@ -13,12 +13,13 @@ import { isSignedIn } from '../sync/google-auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { confirmDestructive } from '../ui/dialog';
 import { showToast } from '../ui/toast';
+import { getListColumns, setListColumns } from '../ui/list-columns';
 import { radius, size, space, type, useThemed, type Palette } from '../ui/theme';
 
 const SWIPE_DELETE = -96;
 
 /** 左へスワイプして離すと削除の確認を出す。キャンセルや閾値未満なら元の位置へ戻す */
-function SwipeRow({ onDelete, children }: { onDelete: () => void; children: React.ReactNode }) {
+function SwipeRow({ onDelete, enabled, children }: { onDelete: () => void; enabled: boolean; children: React.ReactNode }) {
   const [, styles] = useThemed(makeStyles);
   const x = useRef(new Animated.Value(0)).current;
   const back = () => Animated.spring(x, { toValue: 0, useNativeDriver: true }).start();
@@ -33,6 +34,7 @@ function SwipeRow({ onDelete, children }: { onDelete: () => void; children: Reac
       onPanResponderTerminate: back,
     }),
   ).current;
+  if (!enabled) return <>{children}</>; // 2 列では幅が狭くスワイプしにくいので、削除は詳細画面から
   return (
     <View style={styles.swipeBox}>
       <View style={styles.swipeBack}><Text style={styles.swipeText}>削除</Text></View>
@@ -55,6 +57,8 @@ export default function NoteList() {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<NoteSort>('manual');
   const reload = useCallback(() => setNotes(listNotes(query, sort)), [query, sort]);
+  const [cols, setCols] = useState(getListColumns);
+  const toggleCols = () => { const n = cols === 1 ? 2 : 1; setListColumns(n); setCols(n); };
   const canDrag = sort === 'manual' && !query; // 並び替えは手動順で、絞り込みなしのときだけ
   useFocusEffect(reload);
   useEffect(() => subscribeDbChanges(reload), [reload]);
@@ -63,7 +67,10 @@ export default function NoteList() {
   const [drag, setDrag] = useState<{ from: number; to: number } | null>(null);
   const dragY = useRef(new Animated.Value(0)).current;
   const heights = useRef(new Map<string, number>());
+  const dragX = useRef(new Animated.Value(0)).current;
   const lastDy = useRef(0);
+  const lastDx = useRef(0);
+  const layouts = useRef(new Map<string, { y: number; h: number; w: number }>()); // 2 列: 列内の位置
   const h = (i: number) => heights.current.get(notes[i].id) ?? 100;
   const range = (from: number) => {
     const same = (i: number) => notes[i].pinned === notes[from].pinned;
@@ -73,25 +80,44 @@ export default function NoteList() {
     return [lo, hi];
   };
   /** 指の移動量 dy から、離したときの位置を求める（隣のカードの半分を越えたら入れ替わる） */
-  const target = (from: number, dy: number) => {
+  const target = (from: number, dy: number, dx: number) => {
     const [lo, hi] = range(from);
+    if (cols === 2) {
+      // 2 列: 指の位置に重なる列の、中心がいちばん近いカードの位置へ入れる
+      const f = layouts.current.get(notes[from].id);
+      if (!f) return from;
+      const col = Math.min(1, Math.max(0, (from % 2) + Math.round(dx / (f.w + space.m))));
+      const cy = f.y + f.h / 2 + dy;
+      let best = from, gap = Infinity;
+      for (let i = lo; i <= hi; i++) {
+        const l = layouts.current.get(notes[i].id);
+        if (i % 2 !== col || !l) continue;
+        const d = Math.abs(l.y + l.h / 2 - cy);
+        if (d < gap) { best = i; gap = d; }
+      }
+      return best;
+    }
     let to = from, acc = 0;
     if (dy > 0) while (to < hi && dy > acc + h(to + 1) / 2) acc += h(++to);
     else while (to > lo && -dy > acc + h(to - 1) / 2) acc += h(--to);
     return to;
   };
-  const dragMove = (from: number, dy: number) => {
+  const dragMove = (from: number, dy: number, dx: number) => {
     lastDy.current = dy;
+    lastDx.current = dx;
     dragY.setValue(dy);
-    const to = target(from, dy);
+    dragX.setValue(cols === 2 ? dx : 0);
+    const to = target(from, dy, dx);
     setDrag((d) => (d && d.to !== to ? { from, to } : d));
   };
   const dragEnd = (from: number) => {
     const [lo, hi] = range(from);
-    const to = target(from, lastDy.current);
+    const to = target(from, lastDy.current, lastDx.current);
     lastDy.current = 0;
+    lastDx.current = 0;
     setDrag(null);
     dragY.setValue(0);
+    dragX.setValue(0);
     if (to === from) return;
     const group = notes.slice(lo, hi + 1);
     group.splice(to - lo, 0, ...group.splice(from - lo, 1));
@@ -100,7 +126,7 @@ export default function NoteList() {
     onLocalChange();
   };
   const shift = (i: number) => {
-    if (!drag || i === drag.from) return 0;
+    if (cols === 2 || !drag || i === drag.from) return 0; // 2 列は他のカードをずらさない（行き先のカードを薄くして示す）
     if (drag.from < drag.to && i > drag.from && i <= drag.to) return -h(drag.from);
     if (drag.from > drag.to && i < drag.from && i >= drag.to) return h(drag.from);
     return 0;
@@ -166,6 +192,97 @@ export default function NoteList() {
   const openCount = notes.reduce((a, n) => a + n.open_count, 0);
   const doneCount = notes.reduce((a, n) => a + n.total_count - n.open_count, 0);
 
+  const renderNote = (n: NoteRow, i: number) => {
+          const done = n.total_count - n.open_count;
+          const more = n.open_count - n.preview.length;
+          const first = n.body.split('\n')[0];
+          const view = n.list_view;
+          const list = !view;
+          return (
+            <Animated.View
+              key={n.id}
+              onLayout={(e) => { const l = e.nativeEvent.layout; heights.current.set(n.id, l.height + space.m); layouts.current.set(n.id, { y: l.y, h: l.height, w: l.width }); }}
+              style={[styles.cell, drag?.from === i ? { zIndex: 1, elevation: 6, transform: [{ translateX: dragX }, { translateY: dragY }] } : { transform: [{ translateY: shift(i) }] }, cols === 2 && drag && drag.to === i && drag.from !== i ? styles.dropTarget : null]}
+            >
+              <SwipeRow onDelete={() => remove(n)} enabled={cols === 1}>
+                <View style={styles.card}>
+                  <Pressable style={({ pressed }) => [styles.cardMain, canDrag && styles.cardMainHandle, pressed && styles.pressed]} onPress={() => open(n.id)} onLongPress={Platform.OS === 'web' ? undefined : (e) => openViewMenu(n.id, e.nativeEvent.pageY)}>
+                    <View style={styles.titleRow}>
+                      {n.pinned ? <MaterialIcons name="push-pin" size={16} color={p.yellowText} /> : null}
+                      <Text style={styles.title}>{n.title || first || '無題のメモ'}</Text>
+                      {n.total_count ? <Text style={styles.count}>{done}/{n.total_count}</Text> : null}
+                      {Platform.OS === 'web' ? (
+                        <Pressable hitSlop={8} onPress={(e) => openViewMenu(n.id, e.nativeEvent.pageY)} accessibilityLabel="メインで表示を切り替え">
+                          <MaterialIcons name="more-vert" size={20} color={p.inkFaint} />
+                        </Pressable>
+                      ) : null}
+                    </View>
+                    {view === 'memo' ? (
+                      n.body ? <Text style={styles.excerpt} numberOfLines={6}>{n.body}</Text> : null
+                    ) : view === 'image' ? (
+                      <ImageStrip noteId={n.id} />
+                    ) : n.total_count ? (
+                      <View style={styles.bar}><View style={[styles.barFill, { width: `${(done / n.total_count) * 100}%` }]} /></View>
+                    ) : n.title ? (
+                      first ? <Text style={styles.excerpt} numberOfLines={2}>{n.body}</Text> : null
+                    ) : null}
+                  </Pressable>
+                  {list ? n.preview.map((it) => (
+                    <Pressable key={it.id} style={styles.itemRow} onPress={() => open(n.id)}>
+                      <Pressable hitSlop={8} onPress={() => check(it.id)} accessibilityLabel="完了にする">
+                        <View style={styles.box} />
+                      </Pressable>
+                      <Text style={styles.itemText}>{it.text}</Text>
+                    </Pressable>
+                  )) : null}
+                  {list && n.total_count && !n.open_count ? (
+                    <Pressable style={styles.allDone} onPress={() => toggleExpanded(n.id)} accessibilityLabel="完了した項目を表示">
+                      <MaterialIcons name="task-alt" size={16} color={p.accentText} />
+                      <Text style={styles.allDoneText}>すべて完了</Text>
+                      <MaterialIcons name={expanded.has(n.id) ? 'expand-less' : 'expand-more'} size={18} color={p.inkFaint} />
+                    </Pressable>
+                  ) : list && (more > 0 || (n.preview.length && done)) ? (
+                    <Pressable style={styles.moreRow} onPress={() => toggleExpanded(n.id)} accessibilityLabel="完了した項目を表示">
+                      <Text style={styles.more}>{more > 0 ? `ほか ${more} 件` : ''}{more > 0 && done ? ' · ' : ''}{done ? `完了 ${done}` : ''}</Text>
+                      {done ? <MaterialIcons name={expanded.has(n.id) ? 'expand-less' : 'expand-more'} size={16} color={p.inkFaint} /> : null}
+                    </Pressable>
+                  ) : null}
+                  {list && expanded.has(n.id) ? doneItems(n.id).map((it) => (
+                    <Pressable key={it.id} style={styles.itemRow} onPress={() => open(n.id)}>
+                      <Pressable hitSlop={8} onPress={() => check(it.id)} accessibilityLabel="未完了に戻す">
+                        <View style={[styles.box, styles.boxOn]}><MaterialIcons name="check" size={13} color="#fff" /></View>
+                      </Pressable>
+                      <Text style={[styles.itemText, styles.itemDone]}>{it.text}</Text>
+                    </Pressable>
+                  )) : null}
+                  {n.next_reminder || n.conflict_count || n.conflict_of || n.image_count ? (
+                    <View style={styles.chips}>
+                      {n.next_reminder ? (
+                        <Pressable onPress={() => toggleRemind(n.id)} hitSlop={6} accessibilityLabel="リマインドを編集">
+                          <Chip icon="alarm" bg={p.reminderBg} fg={p.reminderFg} text={fmtWhen(n.next_reminder)} mono trailing={remindOpen.has(n.id) ? 'expand-less' : 'expand-more'} />
+                        </Pressable>
+                      ) : null}
+                      {n.conflict_count ? <Chip icon="sync-problem" bg={p.dangerBg} fg={p.dangerFg} text={`競合 ${n.conflict_count}`} /> : null}
+                      {n.conflict_of ? <Chip icon="sync-problem" bg={p.dangerBg} fg={p.dangerFg} text="競合コピー" /> : null}
+                      {n.image_count ? <Chip icon="image" bg={p.chipBg} fg={p.chipFg} text={String(n.image_count)} /> : null}
+                    </View>
+                  ) : null}
+                  {remindOpen.has(n.id) ? (
+                    <View style={styles.remind}>
+                      <ReminderSection noteId={n.id} />
+                    </View>
+                  ) : null}
+                  {canDrag ? (
+                    <View style={styles.handleSlot}>
+                      <DragHandle onStart={() => setDrag({ from: i, to: i })} onMove={(dy, dx) => dragMove(i, dy, dx)} onEnd={() => dragEnd(i)} />
+                    </View>
+                  ) : null}
+                </View>
+              </SwipeRow>
+            </Animated.View>
+          );
+  };
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -186,6 +303,9 @@ export default function NoteList() {
             <MaterialIcons name="close" size={20} color={p.inkMuted} />
           </Pressable>
         ) : null}
+        <Pressable onPress={toggleCols} accessibilityLabel={cols === 1 ? '2 列で表示' : '1 列で表示'} hitSlop={6} style={styles.iconButton}>
+          <MaterialIcons name={cols === 1 ? 'view-column' : 'view-agenda'} size={22} color={p.ink} />
+        </Pressable>
         <Pressable onPress={chooseSort} accessibilityLabel="並び替え" hitSlop={6} style={styles.iconButton}>
           <MaterialIcons name="sort" size={22} color={sort === 'manual' ? p.ink : p.accentText} />
         </Pressable>
@@ -238,96 +358,13 @@ export default function NoteList() {
           未完了 <Text style={styles.metaOpen}>{openCount}</Text> · 完了 {doneCount} · メモ {notes.length}
         </Text>
         {notes.length ? null : <Text style={styles.empty}>{query ? '見つかりませんでした' : 'メモはまだありません'}</Text>}
-        {notes.map((n, i) => {
-          const done = n.total_count - n.open_count;
-          const more = n.open_count - n.preview.length;
-          const first = n.body.split('\n')[0];
-          const view = n.list_view;
-          const list = !view;
-          return (
-            <Animated.View
-              key={n.id}
-              onLayout={(e) => { heights.current.set(n.id, e.nativeEvent.layout.height + space.m); }}
-              style={[styles.cell, drag?.from === i ? { zIndex: 1, elevation: 6, transform: [{ translateY: dragY }] } : { transform: [{ translateY: shift(i) }] }]}
-            >
-              <SwipeRow onDelete={() => remove(n)}>
-                <View style={styles.card}>
-                  <Pressable style={({ pressed }) => [styles.cardMain, pressed && styles.pressed]} onPress={() => open(n.id)} onLongPress={Platform.OS === 'web' ? undefined : (e) => openViewMenu(n.id, e.nativeEvent.pageY)}>
-                    <View style={styles.titleRow}>
-                      {n.pinned ? <MaterialIcons name="push-pin" size={16} color={p.yellowText} /> : null}
-                      <Text style={styles.title} numberOfLines={1}>{n.title || first || '無題のメモ'}</Text>
-                      {n.total_count ? <Text style={styles.count}>{done}/{n.total_count}</Text> : null}
-                      {Platform.OS === 'web' ? (
-                        <Pressable hitSlop={8} onPress={(e) => openViewMenu(n.id, e.nativeEvent.pageY)} accessibilityLabel="メインで表示を切り替え">
-                          <MaterialIcons name="more-vert" size={20} color={p.inkFaint} />
-                        </Pressable>
-                      ) : null}
-                    </View>
-                    {view === 'memo' ? (
-                      n.body ? <Text style={styles.excerpt} numberOfLines={6}>{n.body}</Text> : null
-                    ) : view === 'image' ? (
-                      <ImageStrip noteId={n.id} />
-                    ) : n.total_count ? (
-                      <View style={styles.bar}><View style={[styles.barFill, { width: `${(done / n.total_count) * 100}%` }]} /></View>
-                    ) : n.title ? (
-                      first ? <Text style={styles.excerpt} numberOfLines={2}>{n.body}</Text> : null
-                    ) : null}
-                  </Pressable>
-                  {list ? n.preview.map((it) => (
-                    <Pressable key={it.id} style={styles.itemRow} onPress={() => open(n.id)}>
-                      <Pressable hitSlop={8} onPress={() => check(it.id)} accessibilityLabel="完了にする">
-                        <View style={styles.box} />
-                      </Pressable>
-                      <Text style={styles.itemText} numberOfLines={1}>{it.text}</Text>
-                    </Pressable>
-                  )) : null}
-                  {list && n.total_count && !n.open_count ? (
-                    <Pressable style={styles.allDone} onPress={() => toggleExpanded(n.id)} accessibilityLabel="完了した項目を表示">
-                      <MaterialIcons name="task-alt" size={16} color={p.accentText} />
-                      <Text style={styles.allDoneText}>すべて完了</Text>
-                      <MaterialIcons name={expanded.has(n.id) ? 'expand-less' : 'expand-more'} size={18} color={p.inkFaint} />
-                    </Pressable>
-                  ) : list && (more > 0 || (n.preview.length && done)) ? (
-                    <Pressable style={styles.moreRow} onPress={() => toggleExpanded(n.id)} accessibilityLabel="完了した項目を表示">
-                      <Text style={styles.more}>{more > 0 ? `ほか ${more} 件` : ''}{more > 0 && done ? ' · ' : ''}{done ? `完了 ${done}` : ''}</Text>
-                      {done ? <MaterialIcons name={expanded.has(n.id) ? 'expand-less' : 'expand-more'} size={16} color={p.inkFaint} /> : null}
-                    </Pressable>
-                  ) : null}
-                  {list && expanded.has(n.id) ? doneItems(n.id).map((it) => (
-                    <Pressable key={it.id} style={styles.itemRow} onPress={() => open(n.id)}>
-                      <Pressable hitSlop={8} onPress={() => check(it.id)} accessibilityLabel="未完了に戻す">
-                        <View style={[styles.box, styles.boxOn]}><MaterialIcons name="check" size={13} color="#fff" /></View>
-                      </Pressable>
-                      <Text style={[styles.itemText, styles.itemDone]} numberOfLines={1}>{it.text}</Text>
-                    </Pressable>
-                  )) : null}
-                  {n.next_reminder || n.conflict_count || n.conflict_of || n.image_count ? (
-                    <View style={styles.chips}>
-                      {n.next_reminder ? (
-                        <Pressable onPress={() => toggleRemind(n.id)} hitSlop={6} accessibilityLabel="リマインドを編集">
-                          <Chip icon="alarm" bg={p.reminderBg} fg={p.reminderFg} text={fmtWhen(n.next_reminder)} mono trailing={remindOpen.has(n.id) ? 'expand-less' : 'expand-more'} />
-                        </Pressable>
-                      ) : null}
-                      {n.conflict_count ? <Chip icon="sync-problem" bg={p.dangerBg} fg={p.dangerFg} text={`競合 ${n.conflict_count}`} /> : null}
-                      {n.conflict_of ? <Chip icon="sync-problem" bg={p.dangerBg} fg={p.dangerFg} text="競合コピー" /> : null}
-                      {n.image_count ? <Chip icon="image" bg={p.chipBg} fg={p.chipFg} text={String(n.image_count)} /> : null}
-                    </View>
-                  ) : null}
-                  {remindOpen.has(n.id) ? (
-                    <View style={styles.remind}>
-                      <ReminderSection noteId={n.id} />
-                    </View>
-                  ) : null}
-                  {canDrag ? (
-                    <View style={styles.handleSlot}>
-                      <DragHandle onStart={() => setDrag({ from: i, to: i })} onMove={(dy) => dragMove(i, dy)} onEnd={() => dragEnd(i)} />
-                    </View>
-                  ) : null}
-                </View>
-              </SwipeRow>
-            </Animated.View>
-          );
-        })}
+        <View style={cols === 2 ? styles.columns : undefined}>
+          {(cols === 2 ? [0, 1] : [0]).map((c) => (
+            <View key={c} style={cols === 2 ? [styles.column, drag && drag.from % 2 === c ? styles.columnDragging : null] : undefined}>
+              {notes.map((n, i) => (cols === 2 && i % 2 !== c ? null : renderNote(n, i)))}
+            </View>
+          ))}
+        </View>
       </ScrollView>
       <Pressable style={styles.fab} onPress={() => open(createNote())} accessibilityLabel="新しいメモ">
         <MaterialIcons name="add" size={28} color={p.onYellow} />
@@ -370,12 +407,17 @@ const makeStyles = (p: Palette) =>
     metaOpen: { color: p.yellowText },
     empty: { ...type.small, textAlign: 'center', color: p.inkMuted, marginTop: 80 },
     cell: { marginBottom: space.m },
+    dropTarget: { opacity: 0.4 },
+    columns: { flexDirection: 'row', gap: space.m },
+    column: { flex: 1 },
+    columnDragging: { zIndex: 1 }, // 掴んだカードが、もう一方の列の上に重なるように
     swipeBox: { backgroundColor: p.danger, borderRadius: radius.card, overflow: 'hidden' },
     swipeBack: { ...(StyleSheet.absoluteFill as object), justifyContent: 'center', alignItems: 'flex-end', paddingRight: 24 },
     swipeText: { color: p.onDanger, fontWeight: '600' },
     swipeFront: { backgroundColor: p.bg },
     card: { backgroundColor: p.surface, borderColor: p.border, borderWidth: 1, borderRadius: radius.card, paddingVertical: 12, paddingHorizontal: space.xxl },
-    cardMain: { gap: 8, paddingRight: 24 },
+    cardMain: { gap: 8 },
+    cardMainHandle: { paddingRight: 24 }, // ドラッグハンドルの分（並べ替えできるときだけ）
     pressed: { opacity: 0.7 },
     titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     title: { ...type.cardTitle, color: p.ink, flex: 1 },
@@ -383,7 +425,7 @@ const makeStyles = (p: Palette) =>
     bar: { height: size.progress, borderRadius: 2, backgroundColor: p.border, overflow: 'hidden' },
     barFill: { height: size.progress, backgroundColor: p.accent },
     excerpt: { ...type.small, lineHeight: 22, color: p.inkMuted },
-    itemRow: { flexDirection: 'row', alignItems: 'center', gap: 10, height: size.rowList },
+    itemRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: size.rowList },
     box: { width: size.checkboxList, height: size.checkboxList, borderRadius: radius.checkboxSmall, borderWidth: 1.5, borderColor: p.checkboxBorder },
     itemText: { ...type.item, color: p.ink, flex: 1 },
     moreRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2, alignSelf: 'flex-start' },
