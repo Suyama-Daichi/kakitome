@@ -1,6 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import * as IntentLauncher from 'expo-intent-launcher';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
@@ -9,7 +8,6 @@ import { lastSyncAt, lastSyncError, liveNoteCount, unsentOpCount } from '../db/q
 import { isHighQuality, localImageBytes, setHighQuality } from '../media/blob-port';
 import { Group, Row, SectionHeading } from '../components/SettingsRow';
 import { KeepImport } from '../components/KeepImport';
-import { rescheduleAllReminders } from '../notifications/reconcile';
 import { currentEmail, isSignedIn, signIn, signOut } from '../sync/google-auth';
 import { DevTools } from '../dev/DevTools';
 import { onLocalChange } from '../sync/auto';
@@ -198,35 +196,9 @@ export default function Settings() {
         />
       </Group>
 
-      {Platform.OS === 'web' || (Platform.OS === 'android' && Number(Platform.Version) >= 31) ? (
-        <>
-          <SectionHeading>取り込み・通知</SectionHeading>
-          <Group>
-            <KeepImport />
-            {Platform.OS === 'android' ? (
-              <Row
-                icon="alarm"
-                title="正確な時刻で鳴らす"
-                sub="許可しないと 1 分ほど遅れることがあります"
-                disabled={busy}
-                onPress={() =>
-                  run(async () => {
-                    // 設定画面から戻るまで待ち、許可が変わっていても反映されるよう予約を作り直す
-                    await IntentLauncher.startActivityAsync('android.settings.REQUEST_SCHEDULE_EXACT_ALARM', {
-                      data: `package:${Constants.expoConfig?.android?.package ?? 'app.kakitome'}`,
-                    });
-                    await rescheduleAllReminders();
-                  }, '')
-                }
-                right={<MaterialIcons name="open-in-new" size={20} color={p.inkFaint} />}
-              />
-            ) : null}
-          </Group>
-        </>
-      ) : null}
-
       <SectionHeading>データ</SectionHeading>
       <Group>
+        {Platform.OS === 'web' ? <KeepImport /> : null}
         <Row icon="delete-forever" title="すべてのメモを削除" danger onPress={() => setDeleteCount(liveNoteCount())} />
       </Group>
 
