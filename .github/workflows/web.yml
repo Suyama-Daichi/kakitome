@@ -22,7 +22,7 @@ jobs:
       - run: npx tsc --noEmit
       - run: npx oxlint
       - run: npx jest
-      - run: npx expo export -p web
+      - run: npm run build:web
       - uses: actions/upload-artifact@v4
         with:
           name: web-dist
