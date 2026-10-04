@@ -3,8 +3,8 @@ import { useRef } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
 import { usePalette } from '../ui/theme';
 
-/** 「≡」を押したまま上下に動かして並び替える。指を離すまで他の操作を横取りされない */
-export function DragHandle({ onStart, onMove, onEnd }: { onStart: () => void; onMove: (dy: number) => void; onEnd: () => void }) {
+/** 「≡」を押したまま動かして並び替える。指を離すまで他の操作を横取りされない */
+export function DragHandle({ onStart, onMove, onEnd }: { onStart: () => void; onMove: (dy: number, dx: number) => void; onEnd: () => void }) {
   const p = usePalette();
   const cb = useRef({ onStart, onMove, onEnd });
   cb.current = { onStart, onMove, onEnd };
@@ -13,7 +13,7 @@ export function DragHandle({ onStart, onMove, onEnd }: { onStart: () => void; on
       onStartShouldSetPanResponder: () => true,
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => cb.current.onStart(),
-      onPanResponderMove: (_, g) => cb.current.onMove(g.dy),
+      onPanResponderMove: (_, g) => cb.current.onMove(g.dy, g.dx),
       onPanResponderRelease: () => cb.current.onEnd(),
       onPanResponderTerminate: () => cb.current.onEnd(),
     }),
