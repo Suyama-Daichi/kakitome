@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" font-family="Hiragino Sans, Noto Sans JP, Yu Gothic, system-ui, sans-serif">
+<rect width="600" height="600" fill="#f3f5f4"/>
+<rect width="600" height="84" fill="#00897b"/>
+<text x="32" y="53" font-size="26" font-weight="700" fill="#fff">ご予約の確認</text>
+<rect x="468" y="26" width="104" height="34" rx="17" fill="#ffca28"/>
+<text x="520" y="49" font-size="17" font-weight="700" fill="#10201d" text-anchor="middle">予約確定</text>
+<rect x="28" y="108" width="544" height="156" rx="16" fill="#cfe6e1"/>
+<rect x="28" y="108" width="544" height="156" rx="16" fill="url(#g)"/>
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe3dc"/><stop offset="1" stop-color="#e7f3f0"/></linearGradient></defs>
+<rect x="72" y="136" width="120" height="104" rx="8" fill="#fff" opacity=".85"/>
+<line x1="132" y1="136" x2="132" y2="240" stroke="#bfe3dc" stroke-width="4"/><line x1="72" y1="188" x2="192" y2="188" stroke="#bfe3dc" stroke-width="4"/>
+<rect x="250" y="176" width="260" height="64" rx="10" fill="#fff"/><rect x="250" y="160" width="260" height="24" rx="10" fill="#f5f9f8"/>
+<text x="32" y="306" font-size="30" font-weight="700" fill="#0f1a18">ホテル サクラガーデン</text>
+<text x="32" y="338" font-size="19" fill="#5d6e6a">デラックスツイン · 禁煙 · 朝食付き</text>
+<rect x="28" y="364" width="544" height="2" fill="#dde5e2"/>
+<g font-size="20"><text x="32" y="406" fill="#5d6e6a">チェックイン</text><text x="568" y="406" fill="#0f1a18" font-weight="700" text-anchor="end">10/10 (土) 15:00 〜</text>
+<text x="32" y="450" fill="#5d6e6a">チェックアウト</text><text x="568" y="450" fill="#0f1a18" font-weight="700" text-anchor="end">10/11 (日) 〜 11:00</text>
+<text x="32" y="494" fill="#5d6e6a">宿泊</text><text x="568" y="494" fill="#0f1a18" font-weight="700" text-anchor="end">1 泊 · 2 名</text>
+<text x="32" y="538" fill="#5d6e6a">予約番号</text><text x="568" y="538" fill="#00796b" font-weight="700" text-anchor="end" font-family="Menlo, Consolas, monospace">SG-4821-0937</text></g>
+</svg>
