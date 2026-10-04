@@ -99,23 +99,53 @@ export interface ProcessedImage {
   size: number;
 }
 
-/** 画像は blobs に登録（端末に実体あり・未アップロード）し、メタデータだけを op で記録する（設計 §7.1） */
+/** 画像は blobs に登録（端末に実体あり・未アップロード）し、メタデータだけを op で記録する（設計 §7.1）。tx の中で呼ぶ */
+function putAttachment(ctx: ReturnType<typeof openCore>['ctx'], noteId: string, img: ProcessedImage): string {
+  const now = nowIso();
+  for (const hash of [img.hash, img.thumbHash]) {
+    getDb().runSync(
+      "INSERT INTO blobs (hash, local_path, uploaded, last_used) VALUES (?, ?, 0, ?) ON CONFLICT(hash) DO UPDATE SET local_path = excluded.local_path, last_used = excluded.last_used",
+      hash, `blobs/${hash}`, now,
+    );
+  }
+  const id = ctx.newId();
+  applyLocalOp(ctx, 'attachment', id, {
+    note_id: noteId, hash: img.hash, thumb_hash: img.thumbHash, mime: 'image/jpeg',
+    width: img.width, height: img.height, size: img.size,
+    sort_key: keyBetween(maxAttachmentKey(noteId), null), deleted: 0, created_at: now,
+  });
+  return id;
+}
+
 export function addAttachment(noteId: string, img: ProcessedImage): string {
   const { ctx, tx } = openCore();
-  const now = nowIso();
+  return tx(() => putAttachment(ctx, noteId, img));
+}
+
+const importMark = (key: string) => `import:${key}`;
+
+/** 他のサービスから取り込み済みか（同じものを 2 回取り込まないための、この端末だけの記録） */
+export const isImported = (key: string) => !!getDb().getFirstSync('SELECT 1 FROM sync_state WHERE key = ?', importMark(key));
+
+/** 他のサービスのメモを 1 件、まとめて取り込む。メモ・項目・画像・取り込み済みの記録を 1 つのトランザクションで書く */
+export function importNote(
+  key: string,
+  n: { title: string; body: string; pinned: boolean; createdAt: string; items: { text: string; checked: boolean }[]; images: ProcessedImage[] },
+): string {
+  const { ctx, tx } = openCore();
   return tx(() => {
-    for (const hash of [img.hash, img.thumbHash]) {
-      getDb().runSync(
-        "INSERT INTO blobs (hash, local_path, uploaded, last_used) VALUES (?, ?, 0, ?) ON CONFLICT(hash) DO UPDATE SET local_path = excluded.local_path, last_used = excluded.last_used",
-        hash, `blobs/${hash}`, now,
-      );
-    }
     const id = ctx.newId();
-    applyLocalOp(ctx, 'attachment', id, {
-      note_id: noteId, hash: img.hash, thumb_hash: img.thumbHash, mime: 'image/jpeg',
-      width: img.width, height: img.height, size: img.size,
-      sort_key: keyBetween(maxAttachmentKey(noteId), null), deleted: 0, created_at: now,
+    applyLocalOp(ctx, 'note', id, {
+      title: n.title, body: n.body, pinned: n.pinned ? 1 : 0, sort_key: keyBetween(null, minNoteKey()), deleted: 0, created_at: n.createdAt,
     });
+    let last: string | null = null;
+    for (const it of n.items) {
+      applyLocalOp(ctx, 'checklist_item', ctx.newId(), {
+        note_id: id, text: it.text, checked: it.checked ? 1 : 0, sort_key: (last = keyBetween(last, null)), deleted: 0, created_at: n.createdAt,
+      });
+    }
+    for (const img of n.images) putAttachment(ctx, id, img);
+    getDb().runSync('INSERT OR REPLACE INTO sync_state (key, value) VALUES (?, ?)', importMark(key), '1');
     return id;
   });
 }

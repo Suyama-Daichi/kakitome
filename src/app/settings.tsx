@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { lastSyncAt, lastSyncError, unsentOpCount } from '../db/queries';
 import { isWifiOnly, localImageBytes, setWifiOnly } from '../media/blob-port';
+import { KeepImport } from '../components/KeepImport';
 import { rescheduleAllReminders } from '../notifications/reconcile';
 import { currentEmail, isSignedIn, signIn, signOut } from '../sync/google-auth';
 import { DevTools } from '../dev/DevTools';
@@ -106,6 +107,7 @@ export default function Settings() {
         </Pressable>
         {usage ? <Text style={styles.status}>{usage}</Text> : null}
       </View>
+      <KeepImport />
       {Platform.OS === 'android' && Number(Platform.Version) >= 31 ? (
         <View style={styles.section}>
           <Text style={styles.heading}>リマインドの時刻</Text>
