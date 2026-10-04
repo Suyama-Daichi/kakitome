@@ -221,8 +221,9 @@ const makeStyles = (p: Palette) =>
     itemRowDone: { minHeight: 40 },
     box: { width: size.checkbox, height: size.checkbox, borderRadius: radius.checkbox, borderWidth: 1.5, borderColor: p.checkboxBorder, alignItems: 'center', justifyContent: 'center' },
     boxOn: { backgroundColor: p.accent, borderColor: p.accent },
-    itemInput: { ...type.body, flex: 1, color: p.ink, paddingVertical: 8 },
-    done: { ...type.item, color: p.inkDone, textDecorationLine: 'line-through' },
+    // 1 行の入力欄に lineHeight を付けない: iOS は行の余白を文字の上にためるので、チェックボックスと上下にずれる
+    itemInput: { fontSize: type.body.fontSize, flex: 1, color: p.ink, paddingVertical: 8 },
+    done: { fontSize: type.item.fontSize, color: p.inkDone, textDecorationLine: 'line-through' },
     add: { flexDirection: 'row', alignItems: 'center', gap: 6, height: size.rowEdit },
     addText: { ...type.item, fontWeight: '500', color: p.accentText },
     divider: { height: 1, backgroundColor: p.border, marginVertical: 4 },
