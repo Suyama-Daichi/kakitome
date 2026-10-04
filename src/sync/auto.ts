@@ -26,7 +26,10 @@ export function onLocalChange() {
 export function startAutoSync(): () => void {
   void scheduler.trigger();
   const sub = AppState.addEventListener('change', (s) => {
-    if (s === 'active') void scheduler.trigger();
+    if (s === 'active') {
+      refreshWidget(); // iOS: ウィジェットで押したチェックを取り込む
+      void scheduler.trigger();
+    }
   });
   return () => {
     sub.remove();

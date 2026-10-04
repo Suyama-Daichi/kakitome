@@ -12,7 +12,7 @@
 ### 1.1 必要な機能
 
 - チェックリストを作れる
-- Android のホーム画面ウィジェットから、チェックリストの完了状態を編集できる
+- Android・iOS のホーム画面ウィジェットから、チェックリストの完了状態を編集できる（iOS は DB への反映がアプリの次の起動時）
 - iOS / Android 間でメモを同期できる
 - リマインド機能がある
 - 画像を添付できる
@@ -474,14 +474,15 @@ appDataFolder/
 - clickAction は Android 7 以上でのみ動作する。ウィジェットは React Native の View を画像としてレンダリングする方式である点に留意する
 
 
-### 8.2 iOS（expo-widgets、表示のみ）
+### 8.2 iOS（expo-widgets、チェックは後から DB に反映）
 
-- `expo-widgets` と `@expo/ui` を使う。`src/widget/IosWidget.tsx`（`'widget'` ディレクティブの純粋なコンポーネント）と `refresh.ios.ts`（`updateSnapshot` で表示を更新。`onLocalChange` と同期後に呼ぶ）
+- `expo-widgets` と `@expo/ui` を使う。`src/widget/IosWidget.tsx`（`'widget'` ディレクティブの純粋なコンポーネント）と `refresh.ios.ts`（`updateSnapshot` で表示を更新。`onLocalChange`・同期後・フォアグラウンド復帰時に呼ぶ）
 - 表示: 一覧の先頭のメモ（タイトル・進捗・項目。未完了→完了の順）。タップでそのメモを開く（`widgetURL`）。サイズは systemMedium / systemLarge
-- **チェック操作は iOS ウィジェットでは行わない**: ウィジェットの描画コードは隔離されたランタイムで動き、expo-sqlite と `applyLocalOp` を呼べない。ボタンの結果は props にしか残らず、DB に反映できないため（不変条件の「変更は `applyLocalOp` 経由」を守る）
+- **チェック操作は、押した内容を後から DB に反映する**: ウィジェットの描画コードは隔離されたランタイムで動き、expo-sqlite と `applyLocalOp` を呼べない。そこで、項目を `Button` にし、`onPress` が返す値でウィジェットの表示（`items`・`done`）をすぐ切り替えつつ、押した内容を props の `pending`（`{ id, checked }` の配列）に残す。アプリは `refresh.ios.ts` の `applyPending` で `Widget.getTimeline()` から `pending` を読み、`toggleItem`（`applyLocalOp`）で DB に反映してから、`pending` を空にしたスナップショットを書く（不変条件の「変更は `applyLocalOp` 経由」を守る）。取り込みは、起動時・フォアグラウンド復帰時・ローカル編集後・同期後の `refreshWidget` で行い、呼び出しは 1 つずつ順に処理する（取り込む前に `pending` を消さないため）。適用は「いまの値と違うときだけトグル」で冪等
+- **制約**: DB への反映（と他端末への同期）は、アプリが次に動くときまで遅れる。反映時の HLC は押した時刻ではなく取り込み時刻になるので、他端末の同じ項目の編集とは取り込み時刻の順で解決される。`getTimeline` の読み出しと `updateSnapshot` の間に押された分は失われ得る（ごく短い間）
 - **表示メモをウィジェットごとに選べない**: expo-widgets の設定パラメータの enum は app.json に固定で書く必要があり、メモ一覧を動的に出せない
 - ウィジェットの内容は、アプリが一度動いたときに初めて入る（それまでは空）。アプリが動かない間は更新されない
-- 未検証: 実機・シミュレータでの表示（prebuild の成功までは確認）
+- 未検証: ウィジェットでのチェック操作の実機・シミュレータでの動作
 
 ---
 
@@ -551,7 +552,7 @@ app/               Expo Router の画面
 | 15 | 画面のデザイン | ティール＋黄色のカード型。ライト／ダーク対応（端末設定に従う）。アイコンは `@expo/vector-icons`、フォントは端末のもの | アイコンに合わせた配色に統一。フォントは依存と容量を増やさないため端末で代用。配色は `src/ui/theme.ts`（`usePalette`）に集約 |
 | 16 | Web 対応 | 対象に加える。同期もする。通知・ウィジェット・バックグラウンド同期は対象外 | ブラウザからも使いたいという要望。同期コアは純粋 TS なのでそのまま使え、差は DB・画像・認証・通知の入口だけ。詳細は §2.4 |
 | 17 | Google Keep の取り込み | Web のみ。Takeout の ZIP を読む。ゴミ箱・音声・リマインドは取り込まない | 大きなファイルの操作は PC のブラウザが向いている。Keep には公式の書き出し（Takeout）があり、サーバーを使わず取り込める |
-| 18 | iOS ウィジェット | 表示のみ。expo-widgets。チェックはアプリ内 | 隔離ランタイムから `applyLocalOp` を呼べない。詳細は §8.2 |
+| 18 | iOS ウィジェット | expo-widgets。チェックはウィジェットに押した内容を残し、アプリが次に動くときに `applyLocalOp` で反映する | 隔離ランタイムから `applyLocalOp` を呼べないが、不変条件は守れる。反映が遅れるのが代償。詳細は §8.2 |
 
 ---
 
