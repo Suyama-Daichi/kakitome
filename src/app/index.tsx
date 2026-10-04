@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Modal, Platform, PanResponder, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, PanResponder, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { createNote, moveNote, toggleItem, updateNote } from '../db/actions';
 import { ReminderSection } from '../components/ReminderSection';
 import { subscribeDbChanges } from '../db/changes';
@@ -126,10 +126,13 @@ export default function NoteList() {
   const open = (id: string) => router.push({ pathname: '/note/[id]', params: { id } });
   // 完了項目を展開しているカード
   const [refreshing, setRefreshing] = useState(false);
-  const [sheetNote, setSheetNote] = useState<string | null>(null);
-  useEffect(() => { if (!sheetNote) reload(); }, [sheetNote, reload]); // シートで変えたリマインドを一覧へ反映
-  const sheetNoteRow = notes.find((n) => n.id === sheetNote);
-  const sheetTitle = sheetNoteRow ? sheetNoteRow.title || sheetNoteRow.body.split('\n')[0] || '無題のメモ' : '';
+  const [remindOpen, setRemindOpen] = useState<Set<string>>(new Set());
+  const toggleRemind = (id: string) => {
+    const next = new Set(remindOpen);
+    if (next.delete(id)) reload(); // 閉じるときに、編集したリマインドを一覧へ反映
+    else next.add(id);
+    setRemindOpen(next);
+  };
   const [toast, setToast] = useState<string | null>(null);
   useEffect(() => {
     if (!toast) return;
@@ -230,13 +233,18 @@ export default function NoteList() {
                   {n.next_reminder || n.conflict_count || n.conflict_of || n.image_count ? (
                     <View style={styles.chips}>
                       {n.next_reminder ? (
-                        <Pressable onPress={() => setSheetNote(n.id)} hitSlop={6} accessibilityLabel="リマインドを編集">
-                          <Chip icon="alarm" bg={p.reminderBg} fg={p.reminderFg} text={fmtWhen(n.next_reminder)} mono />
+                        <Pressable onPress={() => toggleRemind(n.id)} hitSlop={6} accessibilityLabel="リマインドを編集">
+                          <Chip icon="alarm" bg={p.reminderBg} fg={p.reminderFg} text={fmtWhen(n.next_reminder)} mono trailing={remindOpen.has(n.id) ? 'expand-less' : 'expand-more'} />
                         </Pressable>
                       ) : null}
                       {n.conflict_count ? <Chip icon="sync-problem" bg={p.dangerBg} fg={p.dangerFg} text={`競合 ${n.conflict_count}`} /> : null}
                       {n.conflict_of ? <Chip icon="sync-problem" bg={p.dangerBg} fg={p.dangerFg} text="競合コピー" /> : null}
                       {n.image_count ? <Chip icon="image" bg={p.chipBg} fg={p.chipFg} text={String(n.image_count)} /> : null}
+                    </View>
+                  ) : null}
+                  {remindOpen.has(n.id) ? (
+                    <View style={styles.remind}>
+                      <ReminderSection noteId={n.id} />
                     </View>
                   ) : null}
                   <View style={styles.handleSlot}>
@@ -248,34 +256,6 @@ export default function NoteList() {
           );
         })}
       </ScrollView>
-      <Modal
-        visible={!!sheetNote}
-        transparent={Platform.OS !== 'ios'}
-        animationType="slide"
-        presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined} // iOS は標準のシート（角丸・スワイプで閉じる）
-        onRequestClose={() => setSheetNote(null)}
-        onDismiss={reload}>
-        {Platform.OS !== 'ios' ? <Pressable style={styles.backdrop} onPress={() => setSheetNote(null)} /> : null}
-        <View style={[styles.sheet, Platform.OS === 'ios' && styles.sheetIos]}>
-          {Platform.OS === 'ios' ? (
-            <View style={styles.sheetBar}>
-              <Text style={styles.sheetTitle} numberOfLines={1}>
-                リマインド
-              </Text>
-              <Pressable onPress={() => setSheetNote(null)} hitSlop={10} style={styles.sheetDone} accessibilityLabel="完了">
-                <Text style={styles.sheetDoneText}>完了</Text>
-              </Pressable>
-            </View>
-          ) : null}
-          <View style={styles.sheetNote}>
-            <MaterialIcons name="sticky-note-2" size={18} color={p.inkMuted} />
-            <Text style={styles.sheetNoteText} numberOfLines={2}>
-              {sheetTitle}
-            </Text>
-          </View>
-          {sheetNote ? <ReminderSection noteId={sheetNote} /> : null}
-        </View>
-      </Modal>
       {toast ? (
         <View style={styles.toast} pointerEvents="none">
           <Text style={styles.toastText}>{toast}</Text>
@@ -288,12 +268,13 @@ export default function NoteList() {
   );
 }
 
-function Chip({ icon, bg, fg, text, mono }: { icon: React.ComponentProps<typeof MaterialIcons>['name']; bg: string; fg: string; text: string; mono?: boolean }) {
+function Chip({ icon, bg, fg, text, mono, trailing }: { trailing?: React.ComponentProps<typeof MaterialIcons>['name']; icon: React.ComponentProps<typeof MaterialIcons>['name']; bg: string; fg: string; text: string; mono?: boolean }) {
   const [, styles] = useThemed(makeStyles);
   return (
     <View style={[styles.chip, { backgroundColor: bg }]}>
       <MaterialIcons name={icon} size={13} color={fg} />
       <Text style={[styles.chipText, { color: fg }, mono && type.monoMeta]}>{text}</Text>
+      {trailing ? <MaterialIcons name={trailing} size={14} color={fg} /> : null}
     </View>
   );
 }
@@ -304,15 +285,6 @@ const makeStyles = (p: Palette) =>
     list: { paddingHorizontal: space.screen, paddingBottom: 110 },
     meta: { ...type.monoMeta, color: p.inkFaint, paddingHorizontal: 6, paddingVertical: space.m },
     metaOpen: { color: p.yellowText },
-    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
-    sheet: { backgroundColor: p.bg, padding: space.screen, paddingBottom: 32, borderTopLeftRadius: radius.card, borderTopRightRadius: radius.card },
-    sheetIos: { flex: 1, padding: 0, borderRadius: 0, paddingHorizontal: space.screen },
-    sheetBar: { height: 56, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-    sheetTitle: { ...type.item, fontWeight: '600', color: p.ink, maxWidth: '60%' },
-    sheetDone: { position: 'absolute', right: 0, top: 0, bottom: 0, justifyContent: 'center' },
-    sheetDoneText: { ...type.button, fontWeight: '600', color: p.accentText },
-    sheetNote: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4, paddingBottom: 12 },
-    sheetNoteText: { ...type.item, fontWeight: '600', color: p.ink, flex: 1 },
     toast: { position: 'absolute', left: space.screen, right: 90, bottom: 32, backgroundColor: p.ink, borderRadius: radius.card, paddingVertical: 12, paddingHorizontal: space.xxl },
     toastText: { ...type.small, color: p.bg },
     empty: { ...type.small, textAlign: 'center', color: p.inkMuted, marginTop: 80 },
@@ -342,6 +314,7 @@ const makeStyles = (p: Palette) =>
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
     chip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.chip, paddingHorizontal: 8, paddingVertical: 3 },
     chipText: { ...type.caption },
+    remind: { marginTop: 10, marginBottom: 2 },
     handleSlot: { position: 'absolute', top: 4, right: 0 },
     handle: { paddingHorizontal: 10, paddingVertical: 10 },
     iconButton: { padding: 6 },
