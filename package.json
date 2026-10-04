@@ -56,6 +56,7 @@
     "test": "jest"
   },
   "private": true,
+  "license": "MIT",
   "jest": {
     "preset": "jest-expo",
     "testMatch": [
