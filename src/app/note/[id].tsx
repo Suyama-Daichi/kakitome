@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Platform } from 'react-native';
 import { addItem, deleteItem, moveSorted, toggleItem, updateItemText, updateNote } from '../../db/actions';
 import { conflictCount, getNote, isBlankNote, listItems, type Item } from '../../db/queries';
 import { AttachmentSection } from '../../components/AttachmentSection';
@@ -140,20 +140,36 @@ export default function NoteEditor() {
     return 0;
   };
 
+  const togglePin = () => { const v = pinned ? 0 : 1; setPinned(v); updateNote(id, { pinned: v }); };
+
   return (
     <ScrollView style={styles.container} scrollEnabled={!drag} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
-      <Stack.Screen
-        options={{
-          headerRight: () => (
-            <View style={styles.headerButtons}>
-              <Pressable onPress={() => { const v = pinned ? 0 : 1; setPinned(v); updateNote(id, { pinned: v }); }} accessibilityLabel="ピン留め">
-                <MaterialIcons name="push-pin" size={22} color={pinned ? p.yellowText : p.barIcon} style={pinned ? null : styles.dim} />
-              </Pressable>
-              <Pressable onPress={remove} accessibilityLabel="削除"><MaterialIcons name="delete" size={22} color={p.barIcon} /></Pressable>
-            </View>
-          ),
-        }}
-      />
+      {Platform.OS === 'ios' ? (
+        // iOS 26 では headerRight の要素が 1 つの枠にまとまるため、ボタンごとに独立した枠にする
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Button
+            separateBackground
+            icon={pinned ? 'pin.fill' : 'pin'}
+            tintColor={pinned ? p.yellowText : p.barIcon}
+            accessibilityLabel="ピン留め"
+            onPress={togglePin}
+          />
+          <Stack.Toolbar.Button separateBackground icon="trash" tintColor={p.barIcon} accessibilityLabel="削除" onPress={remove} />
+        </Stack.Toolbar>
+      ) : (
+        <Stack.Screen
+          options={{
+            headerRight: () => (
+              <View style={styles.headerButtons}>
+                <Pressable onPress={togglePin} accessibilityLabel="ピン留め">
+                  <MaterialIcons name="push-pin" size={22} color={pinned ? p.yellowText : p.barIcon} style={pinned ? null : styles.dim} />
+                </Pressable>
+                <Pressable onPress={remove} accessibilityLabel="削除"><MaterialIcons name="delete" size={22} color={p.barIcon} /></Pressable>
+              </View>
+            ),
+          }}
+        />
+      )}
       {conflicts > 0 || note.conflict_of ? (
         <Pressable style={styles.conflict} onPress={() => router.push({ pathname: '/conflict/[id]', params: { id } })}>
           <MaterialIcons name="sync-problem" size={16} color={p.dangerFg} />
