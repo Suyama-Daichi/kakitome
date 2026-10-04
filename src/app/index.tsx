@@ -1,11 +1,12 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, PanResponder, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { createNote, moveNote, toggleItem, updateNote } from '../db/actions';
 import { subscribeDbChanges } from '../db/changes';
-import { doneItems, listNotes, type NoteRow } from '../db/queries';
-import { onLocalChange } from '../sync/auto';
+import { doneItems, lastSyncError, listNotes, type NoteRow } from '../db/queries';
+import { onLocalChange, scheduler } from '../sync/auto';
+import { isSignedIn } from '../sync/google-auth';
 import { radius, size, space, type, useThemed, type Palette } from '../ui/theme';
 
 const SWIPE_DELETE = -96;
@@ -123,6 +124,20 @@ export default function NoteList() {
 
   const open = (id: string) => router.push({ pathname: '/note/[id]', params: { id } });
   // 完了項目を展開しているカード
+  const [refreshing, setRefreshing] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
+  const refresh = async () => {
+    setRefreshing(true);
+    await scheduler.trigger();
+    setRefreshing(false);
+    // 失敗は例外にならず last_error に残る（成功時は空文字）
+    setToast(!isSignedIn() ? '設定で同期をオンにすると使えます' : lastSyncError() ? '同期に失敗しました' : '同期しました');
+  };
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpanded = (id: string) =>
     setExpanded((cur) => {
@@ -146,7 +161,15 @@ export default function NoteList() {
           ),
         }}
       />
-      <ScrollView scrollEnabled={!drag} contentContainerStyle={styles.list}>
+      <ScrollView
+        scrollEnabled={!drag}
+        contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void refresh()}
+          />
+        }>
         <Text style={styles.meta}>
           未完了 <Text style={styles.metaOpen}>{openCount}</Text> · 完了 {doneCount} · メモ {notes.length}
         </Text>
@@ -216,6 +239,11 @@ export default function NoteList() {
           );
         })}
       </ScrollView>
+      {toast ? (
+        <View style={styles.toast} pointerEvents="none">
+          <Text style={styles.toastText}>{toast}</Text>
+        </View>
+      ) : null}
       <Pressable style={styles.fab} onPress={() => open(createNote())} accessibilityLabel="新しいメモ">
         <MaterialIcons name="add" size={28} color={p.onYellow} />
       </Pressable>
@@ -239,6 +267,8 @@ const makeStyles = (p: Palette) =>
     list: { paddingHorizontal: space.screen, paddingBottom: 110 },
     meta: { ...type.monoMeta, color: p.inkFaint, paddingHorizontal: 6, paddingVertical: space.m },
     metaOpen: { color: p.yellowText },
+    toast: { position: 'absolute', left: space.screen, right: 90, bottom: 32, backgroundColor: p.ink, borderRadius: radius.card, paddingVertical: 12, paddingHorizontal: space.xxl },
+    toastText: { ...type.small, color: p.bg },
     empty: { ...type.small, textAlign: 'center', color: p.inkMuted, marginTop: 80 },
     cell: { marginBottom: space.m },
     swipeBox: { backgroundColor: p.danger, borderRadius: radius.card, overflow: 'hidden' },
