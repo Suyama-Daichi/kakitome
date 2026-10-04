@@ -1,7 +1,8 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useDbReady } from '../db/ready';
 import { useOpenOnNotificationTap } from '../notifications/use-open-on-tap';
 import { reconcileReminders } from '../notifications/reconcile';
@@ -55,6 +56,14 @@ function App() {
             headerTintColor: p.ink,
             headerShadowVisible: false,
             contentStyle: { backgroundColor: p.bg },
+            // Web: 再読み込みすると履歴が失われ、既定の戻るボタンが消える。履歴が無いときは一覧へ戻す
+            ...(Platform.OS === 'web' && {
+              headerLeft: ({ canGoBack }: { canGoBack?: boolean }) => (
+                <Pressable onPress={() => (canGoBack ? router.back() : router.replace('/'))} accessibilityLabel="戻る" hitSlop={8}>
+                  <MaterialIcons name="arrow-back" size={24} color={p.ink} />
+                </Pressable>
+              ),
+            }),
           }}
         >
           <Stack.Screen name="index" options={{ title: '' }} />
