@@ -17,6 +17,8 @@ describe('parseKeepNote', () => {
   it('添付とゴミ箱', () => {
     const n = parseKeepNote({ isTrashed: true, createdTimestampUsec: 1, attachments: [{ filePath: 'x.jpg', mimetype: 'image/jpeg' }, { mimetype: 'audio/3gp' }] });
     expect(n?.trashed).toBe(true);
+    expect(n?.archived).toBe(false);
+    expect(parseKeepNote({ createdTimestampUsec: 1, isArchived: true })?.archived).toBe(true);
     expect(n?.attachments).toEqual([{ name: 'x.jpg', mime: 'image/jpeg' }]);
   });
 

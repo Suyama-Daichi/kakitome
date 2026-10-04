@@ -6,7 +6,7 @@ import { readZip, type ZipEntry } from './zip';
 
 export interface KeepImportResult {
   imported: number;
-  skipped: { trashed: number; already: number; empty: number; attachments: number };
+  skipped: { trashed: number; archived: number; already: number; empty: number; attachments: number };
 }
 
 const baseName = (path: string) => path.split('/').pop() ?? path;
@@ -26,7 +26,7 @@ async function collect(files: File[]): Promise<ZipEntry[]> {
 }
 
 /** Google Keep の Takeout を取り込む。古い順に作るので、最後に編集したメモが一覧の先頭になる */
-export async function importKeep(files: File[], onProgress: (done: number, total: number) => void): Promise<KeepImportResult> {
+export async function importKeep(files: File[], options: { includeArchived: boolean }, onProgress: (done: number, total: number) => void): Promise<KeepImportResult> {
   const entries = await collect(files);
   const media = new Map(entries.filter((e) => !/\.(json|html|txt)$/i.test(e.name)).map((e) => [baseName(e.name), e]));
 
@@ -41,11 +41,12 @@ export async function importKeep(files: File[], onProgress: (done: number, total
   }
   notes.sort((a, b) => a.editedAt - b.editedAt);
 
-  const result: KeepImportResult = { imported: 0, skipped: { trashed: 0, already: 0, empty: 0, attachments: 0 } };
+  const result: KeepImportResult = { imported: 0, skipped: { trashed: 0, archived: 0, already: 0, empty: 0, attachments: 0 } };
   for (const [i, n] of notes.entries()) {
     onProgress(i, notes.length);
     await new Promise((r) => setTimeout(r)); // 画面を更新できるよう、1 件ごとに手放す
     if (n.trashed) { result.skipped.trashed++; continue; }
+    if (n.archived && !options.includeArchived) { result.skipped.archived++; continue; }
     if (isEmptyNote(n)) { result.skipped.empty++; continue; }
     if (isImported(n.key)) { result.skipped.already++; continue; }
 

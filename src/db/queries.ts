@@ -82,6 +82,9 @@ export function listNotes(query = '', sort: NoteSort = 'manual'): NoteRow[] {
   }));
 }
 
+/** 削除していないメモの件数（競合コピーも含む） */
+export const liveNoteCount = () => getDb().getFirstSync<{ n: number }>('SELECT COUNT(*) AS n FROM notes WHERE deleted = 0')?.n ?? 0;
+
 export function getNote(id: string): Pick<NoteRow, 'id' | 'title' | 'body' | 'pinned' | 'conflict_of'> | undefined {
   return getDb().getFirstSync('SELECT id, title, body, pinned, conflict_of FROM notes WHERE id = ? AND deleted = 0', id) ?? undefined;
 }

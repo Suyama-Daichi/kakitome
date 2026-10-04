@@ -91,6 +91,16 @@ export function deleteReminder(id: string) {
   tx(() => applyLocalOp(ctx, 'reminder', id, { deleted: 1 }));
 }
 
+/** すべてのメモを削除する（墓標。同期すると他の端末のメモも消える）。競合コピーも含む。消した件数を返す */
+export function deleteAllNotes(): number {
+  const { ctx, tx } = openCore();
+  return tx(() => {
+    const ids = getDb().getAllSync<{ id: string }>('SELECT id FROM notes WHERE deleted = 0');
+    for (const { id } of ids) applyLocalOp(ctx, 'note', id, { deleted: 1 });
+    return ids.length;
+  });
+}
+
 export interface ProcessedImage {
   hash: string;
   thumbHash: string;
@@ -124,8 +134,13 @@ export function addAttachment(noteId: string, img: ProcessedImage): string {
 
 const importMark = (key: string) => `import:${key}`;
 
-/** 他のサービスから取り込み済みか（同じものを 2 回取り込まないための、この端末だけの記録） */
-export const isImported = (key: string) => !!getDb().getFirstSync('SELECT 1 FROM sync_state WHERE key = ?', importMark(key));
+/** 他のサービスから取り込み済みか（同じものを 2 回取り込まないための、この端末だけの記録）。取り込んだメモを消したあとは、もう一度取り込める */
+export const isImported = (key: string) =>
+  // 値が '1' の記録は、メモの ID を持たない古い形式。取り込み済みとして扱い続ける
+  !!getDb().getFirstSync(
+    "SELECT 1 FROM sync_state s LEFT JOIN notes n ON n.id = s.value WHERE s.key = ? AND (s.value = '1' OR n.deleted = 0)",
+    importMark(key),
+  );
 
 /** 他のサービスのメモを 1 件、まとめて取り込む。メモ・項目・画像・取り込み済みの記録を 1 つのトランザクションで書く */
 export function importNote(
@@ -145,7 +160,7 @@ export function importNote(
       });
     }
     for (const img of n.images) putAttachment(ctx, id, img);
-    getDb().runSync('INSERT OR REPLACE INTO sync_state (key, value) VALUES (?, ?)', importMark(key), '1');
+    getDb().runSync('INSERT OR REPLACE INTO sync_state (key, value) VALUES (?, ?)', importMark(key), id);
     return id;
   });
 }

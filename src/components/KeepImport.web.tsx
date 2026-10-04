@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { importKeep, type KeepImportResult } from '../import/keep-import.web';
 import { onLocalChange } from '../sync/auto';
 import { radius, space, type, useThemed, type Palette } from '../ui/theme';
@@ -8,6 +8,7 @@ function summary(r: KeepImportResult) {
   const s = r.skipped;
   const parts = [
     s.trashed ? `ゴミ箱 ${s.trashed}` : '',
+    s.archived ? `アーカイブ ${s.archived}` : '',
     s.already ? `取り込み済み ${s.already}` : '',
     s.empty ? `空のメモ ${s.empty}` : '',
     s.attachments ? `取り込めない添付（音声など） ${s.attachments}` : '',
@@ -20,12 +21,13 @@ export function KeepImport() {
   const input = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<[number, number] | null>(null);
   const [message, setMessage] = useState('');
+  const [includeArchived, setIncludeArchived] = useState(true);
 
   const run = async (files: File[]) => {
     setMessage('');
     setProgress([0, 0]);
     try {
-      const r = await importKeep(files, (done, total) => setProgress([done, total]));
+      const r = await importKeep(files, { includeArchived }, (done, total) => setProgress([done, total]));
       setMessage(summary(r));
       if (r.imported) onLocalChange();
     } catch (e) {
@@ -41,6 +43,10 @@ export function KeepImport() {
       <Text style={styles.note}>
         Google Takeout で書き出した Keep の ZIP（または、展開した JSON と画像）を選んでください。ゴミ箱のメモは取り込みません。ラベルは本文の末尾に書き足します。同じ ZIP をもう一度選んでも、取り込み済みのメモは重複しません。
       </Text>
+      <View style={styles.switchRow}>
+        <Text style={styles.switchLabel}>アーカイブしたメモも取り込む</Text>
+        <Switch value={includeArchived} trackColor={{ true: p.accent, false: p.border }} thumbColor={p.ink} onValueChange={setIncludeArchived} />
+      </View>
       <input
         ref={input}
         type="file"
@@ -77,5 +83,7 @@ const makeStyles = (p: Palette) =>
     buttonText: { ...type.button },
     secondary: { borderWidth: 1, borderColor: p.borderControl },
     secondaryText: { color: p.inkSub },
+    switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 6 },
+    switchLabel: { ...type.small, color: p.ink, flex: 1 },
     progress: { flexDirection: 'row', alignItems: 'center', gap: space.m },
   });

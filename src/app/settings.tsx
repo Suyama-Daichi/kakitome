@@ -3,13 +3,16 @@ import * as IntentLauncher from 'expo-intent-launcher';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { lastSyncAt, lastSyncError, unsentOpCount } from '../db/queries';
+import { deleteAllNotes } from '../db/actions';
+import { lastSyncAt, lastSyncError, liveNoteCount, unsentOpCount } from '../db/queries';
 import { isWifiOnly, localImageBytes, setWifiOnly } from '../media/blob-port';
 import { KeepImport } from '../components/KeepImport';
 import { rescheduleAllReminders } from '../notifications/reconcile';
 import { currentEmail, isSignedIn, signIn, signOut } from '../sync/google-auth';
 import { DevTools } from '../dev/DevTools';
+import { onLocalChange } from '../sync/auto';
 import { makeDrive, runSync } from '../sync/run';
+import { confirmDestructive } from '../ui/dialog';
 import { radius, space, type, useThemed, type Palette } from '../ui/theme';
 import { getThemeMode, setThemeMode, type ThemeMode } from '../ui/theme-mode';
 
@@ -111,6 +114,24 @@ export default function Settings() {
         {usage ? <Text style={styles.status}>{usage}</Text> : null}
       </View>
       <KeepImport />
+      <View style={styles.section}>
+        <Text style={styles.heading}>データ</Text>
+        <Text style={styles.note}>すべてのメモを削除します。同期をオンにしている場合は、他の端末のメモも削除され、元に戻せません。</Text>
+        <Pressable
+          style={[styles.button, styles.danger]}
+          disabled={busy}
+          onPress={() =>
+            confirmDestructive('すべてのメモを削除', `${liveNoteCount()} 件のメモをすべて削除します。同期している他の端末のメモも削除され、元に戻せません。`, () => {
+              const n = deleteAllNotes();
+              onLocalChange();
+              setMessage(`${n} 件のメモを削除しました`);
+              reload();
+            })
+          }
+        >
+          <Text style={[styles.buttonText, styles.dangerText]}>すべてのメモを削除</Text>
+        </Pressable>
+      </View>
       {Platform.OS === 'android' && Number(Platform.Version) >= 31 ? (
         <View style={styles.section}>
           <Text style={styles.heading}>リマインドの時刻</Text>
@@ -152,6 +173,8 @@ const makeStyles = (p: Palette) =>
     buttonText: { ...type.button, color: p.onAccent },
     secondary: { backgroundColor: 'transparent', borderWidth: 1, borderColor: p.borderControl },
     secondaryText: { color: p.inkSub },
+    danger: { backgroundColor: 'transparent', borderWidth: 1, borderColor: p.danger },
+    dangerText: { color: p.dangerFg },
     error: { ...type.small, color: p.dangerFg, paddingHorizontal: 6 },
     segments: { flexDirection: 'row', gap: 8 },
     segment: { flex: 1, height: 38, borderRadius: radius.button, borderWidth: 1, borderColor: p.borderControl, alignItems: 'center', justifyContent: 'center' },

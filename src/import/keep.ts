@@ -7,6 +7,7 @@ export interface KeepNote {
   body: string;
   pinned: boolean;
   trashed: boolean;
+  archived: boolean;
   items: { text: string; checked: boolean }[];
   createdAt: string;
   editedAt: number;
@@ -38,6 +39,7 @@ export function parseKeepNote(json: unknown): KeepNote | null {
     body,
     pinned: j.isPinned === true,
     trashed: j.isTrashed === true,
+    archived: j.isArchived === true,
     items,
     createdAt: new Date(created / 1000 || Date.now()).toISOString(),
     editedAt: edited / 1000,
