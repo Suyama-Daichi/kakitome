@@ -1,6 +1,6 @@
 "use no memo"; // react-native-android-widget は React Compiler 変換後のコンポーネントを描画できない
 import { createElement } from 'react';
-import { FlexWidget, TextWidget } from 'react-native-android-widget';
+import { FlexWidget, ListWidget, TextWidget } from 'react-native-android-widget';
 import type { NoteView } from '../db/queries';
 import { palettes, type Palette } from '../ui/theme';
 
@@ -26,6 +26,8 @@ function Widget({ note, p }: { note?: NoteView; p: Palette }) {
           {total - done ? <FlexWidget style={{ flex: total - done, height: 3 }} /> : null}
         </FlexWidget>
       ) : null}
+      {/* 項目が多いときはスクロールできるよう ListWidget に入れる（各項目は画像として描かれ、項目全体のタップが TOGGLE_ITEM になる） */}
+      <ListWidget style={{ width: 'match_parent', height: 'match_parent' }}>
       {note?.items.map((it) => (
         <FlexWidget
           key={it.id}
@@ -45,6 +47,7 @@ function Widget({ note, p }: { note?: NoteView; p: Palette }) {
           <TextWidget text={it.text} style={{ fontSize: 14, color: (it.checked ? p.inkDone : p.ink) as `#${string}` }} />
         </FlexWidget>
       ))}
+      </ListWidget>
     </FlexWidget>
   );
 }

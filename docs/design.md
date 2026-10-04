@@ -458,7 +458,7 @@ appDataFolder/
 ## 8. Android ウィジェット
 
 - react-native-android-widget を Expo Config Plugin で導入する
-- 表示: 1つのメモのチェックリスト（未完了→完了の順、§3.4 と同じクエリ）。表示するメモはウィジェットごとに選ぶ（追加時と、長押しの設定から開く設定画面。`widgetFeatures: reconfigurable`、`registerWidgetConfigurationScreen`）。選択は `sync_state` の `widget_note:<widgetId>` に保存する（この端末だけの設定で、同期しない）。未選択、または選んだメモが削除済みなら、一覧の先頭のメモを表示する
+- 表示: 1つのメモのチェックリスト（未完了→完了の順、§3.4 と同じクエリ）。項目が多いときは、項目の部分をスクロールできる（`ListWidget`。見出しと進捗バーは固定。各項目は画像として描かれ、項目全体のタップが `TOGGLE_ITEM` になる。1 つのウィジェットに置ける `ListWidget` は 2 つまで）。表示するメモはウィジェットごとに選ぶ（追加時と、長押しの設定から開く設定画面。`widgetFeatures: reconfigurable`、`registerWidgetConfigurationScreen`）。選択は `sync_state` の `widget_note:<widgetId>` に保存する（この端末だけの設定で、同期しない）。未選択、または選んだメモが削除済みなら、一覧の先頭のメモを表示する
 - 操作: 項目タップで `clickAction` + `clickActionData: { itemId }` を発火 → タスクハンドラで `applyLocalOp` を呼び `checked` をトグル → 再描画
 - Drive への送信は次回起動時またはバックグラウンドタスクで行う
 - 画像は表示しない
