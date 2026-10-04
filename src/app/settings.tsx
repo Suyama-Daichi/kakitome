@@ -68,7 +68,7 @@ export default function Settings() {
       </Text>
       {signed ? (
         <>
-          <Text style={styles.status}>サインイン中: {email ?? '（不明）'}</Text>
+          <Text style={styles.status}>サインイン中{email ? `: ${email}` : ''}</Text>
           <Text style={styles.status}>未送信の変更: {info.unsent} 件</Text>
           <Text style={styles.status}>最終同期: {info.last ? new Date(info.last).toLocaleString() : 'まだありません'}</Text>
           {info.error ? <Text style={styles.error}>直近の自動同期の失敗: {info.error}</Text> : null}
