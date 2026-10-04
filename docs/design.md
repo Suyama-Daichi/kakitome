@@ -99,6 +99,7 @@ Expo を選んだ理由: 全要件が Expo のまま（Kotlin / Swift を書か�
 静的ホスティング（`expo export -p web`、`app.json` の `web.output` は `single`）に配信する SPA。画面はモバイル版と同じ（広い画面では幅 640px の 1 列を中央に置く）。プラットフォームの差は `*.web.ts` に分ける。
 
 - **DB**: expo-sqlite の Web 版（wa-sqlite＋OPFS、alpha）。同期 API は SharedArrayBuffer を使うため、cross-origin isolation（`Cross-Origin-Opener-Policy: same-origin`、`Cross-Origin-Embedder-Policy: require-corp`）が要る。開発サーバーは `metro.config.js`、配信は `public/_headers`（Cloudflare Pages / Netlify 形式。他のホストは同じヘッダーを設定する）。`.wasm` は `metro.config.js` でアセットに加える
+- **expo-sqlite のパッチ**: 57.0.3 の Web 版は、同期 API の結果の長さを `Uint8Array.set(Uint32Array)` で書くため 256 バイトに切り詰められ、256 バイト以上の結果が壊れる（`patches/expo-sqlite+57.0.3.patch`、`postinstall` の patch-package で当てる。expo-sqlite を更新したら、直っているか確認して外す）
 - **同期 API の制約**: 待てる時間が短く、結果は約 1MB まで。ワーカーの起動前や重い処理（スキーマ作成・初回の書き込み）は間に合わないので、起動時に `initDb()` で非同期に開き、スキーマ作成と書き込みの予熱まで済ませてから画面を出す（`src/db/ready.ts`）。画像の実体は 1MB を超えうるので、非同期 API で読み書きする
 - **画像**: 実体はファイルではなく SQLite の `blob_data` テーブル（`src/media/blobs.web.ts`）。縮小・JPEG 化は canvas（再エンコードで EXIF は落ちる。`stripJpegMetadata` も通す。`process.web.ts`）。表示は `BlobImage`（`blobUri` で object URL を作る）
 - **Google サインイン**: COOP: same-origin の下ではポップアップ方式（Google Identity Services）が動かないため、リダイレクト型の OAuth（implicit）を自前で行う（`google-auth.web.ts`）。スコープは `drive.appdata` のみ。アクセストークンは約 1 時間で切れ、リフレッシュはできない。切れたら未サインイン扱いになり、設定からもう一度サインインする（同意済みなら画面は一瞬）。メールアドレスは取れない（スコープを増やさないため）。Google Cloud のウェブ クライアントに、配信元の URL を「承認済みの JavaScript 生成元」と「承認済みのリダイレクト URI」（`<配信元>/`）として登録する
