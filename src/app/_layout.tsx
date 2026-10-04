@@ -1,7 +1,7 @@
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useDbReady } from '../db/ready';
 import { useOpenOnNotificationTap } from '../notifications/use-open-on-tap';
 import { reconcileReminders } from '../notifications/reconcile';
@@ -37,6 +37,10 @@ function App() {
     void reconcileReminders().catch(() => {});
     void registerBackgroundSync();
     return startAutoSync();
+  }, []);
+  // Web: サインインで戻ってきた URL の #access_token=… は google-auth.web が取り込んで消すが、ルーターが自分の状態から URL を作り直して戻してしまう。ルーターの状態ごと '/' に置き換える
+  useEffect(() => {
+    if (Platform.OS === 'web' && location.hash.includes('access_token')) router.replace('/');
   }, []);
   // 配色は端末のライト／ダーク設定に従う。ヘッダーも同じ配色にする
   return (
