@@ -3,7 +3,7 @@ import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Platform } from 'react-native';
 import { addItem, deleteItem, moveSorted, toggleItem, updateItemText, updateNote } from '../../db/actions';
-import { conflictCount, getNote, isBlankNote, listItems, type Item } from '../../db/queries';
+import { conflictCount, getNote, isBlankNote, listItems, noteUpdatedAt, type Item } from '../../db/queries';
 import { AttachmentSection } from '../../components/AttachmentSection';
 import { DragHandle } from '../../components/DragHandle';
 import { ReminderSection } from '../../components/ReminderSection';
@@ -109,6 +109,7 @@ export default function NoteEditor() {
   const remove = () =>
     confirmDestructive('メモを削除', 'このメモを削除しますか？', () => { updateNote(id, { deleted: 1 }); onLocalChange(); router.back(); });
 
+  const updatedAt = noteUpdatedAt(id); // ponytail: 描画のたびに引く。保存直後の再描画まで更新時刻は古いまま
   const open = items.filter((it) => !it.checked);
   const done = items.filter((it) => it.checked);
 
@@ -177,6 +178,7 @@ export default function NoteEditor() {
         </Pressable>
       ) : null}
       <TextInput style={styles.titleInput} value={title} onChangeText={setTitle} placeholder="タイトル" placeholderTextColor={p.inkDone} />
+      {updatedAt ? <Text style={styles.updated}>最終更新 {new Date(updatedAt).toLocaleString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</Text> : null}
       <View style={styles.card}>
         <Text style={styles.cardLabel}>メモ</Text>
         <TextInput style={styles.bodyInput} value={body} onChangeText={setBody} placeholder="メモ" placeholderTextColor={p.inkDone} multiline />
@@ -226,6 +228,7 @@ const makeStyles = (p: Palette) =>
     conflict: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: p.dangerBg, borderColor: p.dangerBorder, borderWidth: 1, borderRadius: radius.button, padding: 10 },
     conflictText: { ...type.item, color: p.dangerFg, flex: 1 },
     titleInput: { ...type.noteTitle, color: p.ink, paddingVertical: 8, paddingHorizontal: 6 },
+    updated: { ...type.caption, color: p.inkFaint, paddingHorizontal: 6 },
     card: { backgroundColor: p.surface, borderColor: p.border, borderWidth: 1, borderRadius: radius.card, paddingVertical: 10, paddingHorizontal: space.cardPad },
     cardLabel: { ...type.label, color: p.inkFaint },
     bodyInput: { ...type.body, color: p.ink, minHeight: 180, textAlignVertical: 'top' },

@@ -90,6 +90,18 @@ export function getNote(id: string): Pick<NoteRow, 'id' | 'title' | 'body' | 'pi
   return getDb().getFirstSync('SELECT id, title, body, pinned, conflict_of FROM notes WHERE id = ? AND deleted = 0', id) ?? undefined;
 }
 
+/** タイトル・本文・項目の最終更新時刻（ミリ秒）。専用の列は持たず、各フィールドの HLC（先頭が壁時計のミリ秒）の最大値から求める。並べ替え（sort_key）とピン留めは含めない */
+export function noteUpdatedAt(id: string): number | undefined {
+  const r = getDb().getFirstSync<{ hlc: string | null }>(
+    `SELECT max(hlc) AS hlc FROM field_clocks WHERE field NOT IN ('sort_key', 'pinned') AND (
+       (entity = 'note' AND entity_id = ?)
+       OR (entity = 'checklist_item' AND entity_id IN (SELECT id FROM checklist_items WHERE note_id = ?)))`,
+    id, id,
+  );
+  const ms = r?.hlc ? Number(r.hlc.split(':')[0]) : NaN;
+  return Number.isFinite(ms) ? ms : undefined;
+}
+
 /** タイトル・本文・項目・リマインド・画像がすべて空の、作っただけのメモか */
 export function isBlankNote(id: string): boolean {
   const n = getDb().getFirstSync<{ blank: number }>(
