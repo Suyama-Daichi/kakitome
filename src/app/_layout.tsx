@@ -7,6 +7,7 @@ import { useOpenOnNotificationTap } from '../notifications/use-open-on-tap';
 import { reconcileReminders } from '../notifications/reconcile';
 import { registerBackgroundSync } from '../sync/background';
 import { startAutoSync } from '../sync/auto';
+import { refreshWidget } from '../widget/refresh';
 import { ToastHost } from '../ui/toast';
 import { usePalette } from '../ui/theme';
 import { applyThemeMode, getThemeMode } from '../ui/theme-mode';
@@ -35,6 +36,7 @@ function App() {
 
   useEffect(() => {
     void reconcileReminders().catch(() => {});
+    refreshWidget(); // iOS: 編集が無くても、起動時にウィジェットへ内容を入れる
     void registerBackgroundSync();
     return startAutoSync();
   }, []);

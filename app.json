@@ -82,6 +82,23 @@
         {
           "iosUrlScheme": "com.googleusercontent.apps.196889256232-0r0vqbt26up91kaj7ktlne3of3n4i8nc"
         }
+      ],
+      [
+        "expo-widgets",
+        {
+          "widgets": [
+            {
+              "name": "Checklist",
+              "displayName": "kakitome チェックリスト",
+              "description": "メモのチェックリストを表示",
+              "supportedFamilies": [
+                "systemMedium",
+                "systemLarge"
+              ],
+              "contentMarginsDisabled": false
+            }
+          ]
+        }
       ]
     ],
     "experiments": {
