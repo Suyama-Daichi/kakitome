@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useDbReady } from '../db/ready';
 import { useOpenOnNotificationTap } from '../notifications/use-open-on-tap';
 import { reconcileReminders } from '../notifications/reconcile';
@@ -15,7 +15,17 @@ import { applyThemeMode, getThemeMode } from '../ui/theme-mode';
 export { ErrorBoundary } from 'expo-router';
 
 export default function RootLayout() {
-  return useDbReady() ? <App /> : null;
+  const { ready, error } = useDbReady();
+  if (error) {
+    // Web: 同じサイトを開いている別のタブが DB を使っていると開けない
+    return (
+      <View style={styles.error}>
+        <Text style={styles.errorText}>データを開けませんでした。kakitome を開いている他のタブをすべて閉じてから、このページを再読み込みしてください。</Text>
+        <Text style={styles.errorDetail}>{error.message}</Text>
+      </View>
+    );
+  }
+  return ready ? <App /> : null;
 }
 
 function App() {
@@ -55,5 +65,8 @@ function App() {
 // 広い画面（Web）では、モバイル版と同じ幅の 1 列を中央に置く
 const styles = StyleSheet.create({
   outer: { flex: 1 },
+  error: { flex: 1, padding: 24, justifyContent: 'center', gap: 12 },
+  errorText: { fontSize: 16 },
+  errorDetail: { fontSize: 12, opacity: 0.6 },
   column: { flex: 1, width: '100%', maxWidth: 640, alignSelf: 'center' },
 });
