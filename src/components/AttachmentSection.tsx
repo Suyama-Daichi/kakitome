@@ -40,7 +40,7 @@ export function AttachmentSection({ noteId }: { noteId: string }) {
     }
   };
 
-  // 本体が未取得なら、表示するときに取得する（Wi-Fi 限定設定に従う）
+  // 本体が未取得なら、表示するときに取得する
   const open = async (a: AttachmentView) => {
     setViewing(a);
     if (a.has_body) {
@@ -65,7 +65,7 @@ export function AttachmentSection({ noteId }: { noteId: string }) {
                   <BlobImage hash={a.thumb_hash} style={styles.thumb} contentFit="cover" />
                 ) : (
                   <View style={[styles.thumb, styles.placeholder]}>
-                    <Text style={styles.placeholderText}>Wi-Fi 接続時に同期されます</Text>
+                    <Text style={styles.placeholderText}>同期されると表示されます</Text>
                   </View>
                 )}
               </Pressable>
@@ -88,7 +88,7 @@ export function AttachmentSection({ noteId }: { noteId: string }) {
           ) : null}
           {viewing && !viewing.has_body ? (
             <Text style={styles.viewerNote}>
-              {bodyState === 'loading' ? '画像を取得しています…' : bodyState === 'wifi' ? 'Wi-Fi 接続時に高画質の画像を同期します' : bodyState === 'unavailable' ? '画像はまだ同期されていません' : ''}
+              {bodyState === 'loading' ? '画像を取得しています…' : bodyState === 'unavailable' ? '画像はまだ同期されていません' : ''}
             </Text>
           ) : null}
         </Pressable>

@@ -1,9 +1,10 @@
 import { stripJpegMetadata } from '../core/jpeg';
 import type { ProcessedImage } from '../db/actions';
-import { sha256Hex } from './blob-port';
+import { isHighQuality, sha256Hex } from './blob-port';
 import { writeBlob } from './blobs';
 
 const MAIN_EDGE = 2048; // 設計 §7.2
+const HQ_EDGE = 4096; // 「画像を高画質で添付」がオンのとき
 const THUMB_EDGE = 320;
 
 /** 長辺が maxEdge を超えるときだけ縮小し、canvas で JPEG にする（再エンコードで EXIF は落ちる。念のため stripJpegMetadata も通す） */
@@ -27,7 +28,7 @@ async function store(bytes: Uint8Array) {
 /** 選んだ画像 → 本体（長辺 2048px）とサムネイル（長辺 320px）を保存する */
 export async function importImage(uri: string): Promise<ProcessedImage> {
   const src = await createImageBitmap(await (await fetch(uri)).blob()); // 既定で EXIF の向きを反映する
-  const main = await toJpeg(src, MAIN_EDGE, 0.8);
+  const main = await toJpeg(src, isHighQuality() ? HQ_EDGE : MAIN_EDGE, isHighQuality() ? 0.9 : 0.8);
   const thumb = await toJpeg(await createImageBitmap(main.bitmap), THUMB_EDGE, 0.7);
   src.close();
   const m = await store(main.bytes);

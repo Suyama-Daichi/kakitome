@@ -162,7 +162,7 @@ export async function syncOnce(
   if (blobs) {
     // サムネイルは先読み。本体は遅延ダウンロード（表示時）。取得に失敗しても同期全体は止めない
     for (const h of blobs.missingThumbs()) await downloadBlob(drive, blobs, h).catch(() => false);
-    // 本体のアップロードは最後（「Wi-Fi 接続時のみ」設定に従う）
+    // 本体のアップロードは最後
     const { bodies } = await plan(await blobs.allowBodies());
     for (const h of bodies) await uploadBlob(drive, blobs, h);
   }

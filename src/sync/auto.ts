@@ -1,4 +1,3 @@
-import NetInfo from '@react-native-community/netinfo';
 import { AppState } from 'react-native';
 import { getDb } from '../db';
 import { reconcileSoon } from '../notifications/reconcile';
@@ -29,16 +28,8 @@ export function startAutoSync(): () => void {
   const sub = AppState.addEventListener('change', (s) => {
     if (s === 'active') void scheduler.trigger();
   });
-  // Wi-Fi／有線につながったら、止まっていた画像の本体アップロードを再開する（設計 §7.3）
-  let unmetered = false;
-  const net = NetInfo.addEventListener((s) => {
-    const now = (s.type === 'wifi' || s.type === 'ethernet') && s.details.isConnectionExpensive !== true;
-    if (now && !unmetered) void scheduler.trigger();
-    unmetered = now;
-  });
   return () => {
     sub.remove();
-    net();
     scheduler.dispose();
   };
 }

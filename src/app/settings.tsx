@@ -6,7 +6,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { deleteAllNotes } from '../db/actions';
 import { lastSyncAt, lastSyncError, liveNoteCount, unsentOpCount } from '../db/queries';
-import { isWifiOnly, localImageBytes, setWifiOnly } from '../media/blob-port';
+import { isHighQuality, localImageBytes, setHighQuality } from '../media/blob-port';
 import { Group, Row, SectionHeading } from '../components/SettingsRow';
 import { KeepImport } from '../components/KeepImport';
 import { rescheduleAllReminders } from '../notifications/reconcile';
@@ -41,7 +41,7 @@ export default function Settings() {
   const [email, setEmail] = useState<string | null>(null);
   const [signed, setSigned] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [wifiOnly, setWifiOnlyState] = useState(true);
+  const [highQuality, setHighQualityState] = useState(false);
   const [usage, setUsage] = useState<{ drive: number; local: number } | 'loading' | null>(null);
   const [theme, setTheme] = useState<ThemeMode>(getThemeMode);
   const [info, setInfo] = useState({ unsent: 0, last: null as string | null, error: null as string | null });
@@ -50,7 +50,7 @@ export default function Settings() {
   const reload = useCallback(() => {
     setSigned(isSignedIn());
     setEmail(currentEmail());
-    setWifiOnlyState(isWifiOnly());
+    setHighQualityState(isHighQuality());
     setInfo({ unsent: unsentOpCount(), last: lastSyncAt(), error: lastSyncError() || null });
   }, []);
   useFocusEffect(reload);
@@ -176,11 +176,11 @@ export default function Settings() {
       <SectionHeading>画像</SectionHeading>
       <Group>
         <Row
-          icon="wifi"
-          title="画像の本体は Wi-Fi のみ"
-          sub="サムネイルとメモはモバイル回線でも同期"
-          onPress={() => { setWifiOnly(!wifiOnly); setWifiOnlyState(!wifiOnly); }}
-          right={<Switch value={wifiOnly} pointerEvents="none" trackColor={{ true: p.accent, false: p.border }} thumbColor={p.ink} onValueChange={() => {}} />}
+          icon="high-quality"
+          title="画像を高画質で添付"
+          sub="Google ドライブの容量を多く使用します"
+          onPress={() => { setHighQuality(!highQuality); setHighQualityState(!highQuality); }}
+          right={<Switch value={highQuality} pointerEvents="none" trackColor={{ true: p.accent, false: p.border }} thumbColor={p.ink} onValueChange={() => {}} />}
         />
         <Row
           icon="data-usage"

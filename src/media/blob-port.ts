@@ -1,29 +1,15 @@
 import * as Crypto from 'expo-crypto';
-import NetInfo from '@react-native-community/netinfo';
-import { Platform } from 'react-native';
 import type { BlobState } from '../core/uploads';
 import { getDb } from '../db';
 import type { BlobPort } from '../sync/blobs';
 import { blobFile, deleteBlobFile, writeBlob } from './blobs';
 
-const KEY = 'wifi_only';
+const HQ_KEY = 'hq_images';
 
-/** 「画像は Wi-Fi 接続時のみ」設定。既定はオン（本体のみが対象。サムネイルと op は回線に関わらず送る） */
-export const isWifiOnly = () =>
-  (getDb().getFirstSync<{ value: string }>('SELECT value FROM sync_state WHERE key = ?', KEY)?.value ?? '1') !== '0';
-export const setWifiOnly = (on: boolean) =>
-  getDb().runSync('INSERT OR REPLACE INTO sync_state (key, value) VALUES (?, ?)', KEY, on ? '1' : '0');
-
-/** Wi-Fi／有線で、従量課金の回線でない */
-async function onUnmeteredNetwork(): Promise<boolean> {
-  if (Platform.OS === 'web') return true; // ブラウザは回線の種別を教えてくれない
-  const s = await NetInfo.fetch();
-  return (s.type === 'wifi' || s.type === 'ethernet') && s.details.isConnectionExpensive !== true;
-}
-
-export async function bodiesAllowed(): Promise<boolean> {
-  return !isWifiOnly() || (await onUnmeteredNetwork());
-}
+/** 「画像を高画質で添付」。既定はオフ。この端末で添付する画像だけに効く（保存済みの画像は変わらない） */
+export const isHighQuality = () => getDb().getFirstSync<{ value: string }>('SELECT value FROM sync_state WHERE key = ?', HQ_KEY)?.value === '1';
+export const setHighQuality = (on: boolean) =>
+  getDb().runSync('INSERT OR REPLACE INTO sync_state (key, value) VALUES (?, ?)', HQ_KEY, on ? '1' : '0');
 
 export const sha256Hex = async (bytes: Uint8Array<ArrayBuffer>) =>
   Array.from(new Uint8Array(await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, bytes)), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -73,7 +59,7 @@ export function createBlobPort(): BlobPort {
         .map((r) => r.thumb_hash),
 
     sha256: (bytes) => sha256Hex(bytes as Uint8Array<ArrayBuffer>),
-    allowBodies: bodiesAllowed,
+    allowBodies: async () => true,
 
     now: () => Date.now(),
 

@@ -2,10 +2,11 @@ import { File } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { stripJpegMetadata } from '../core/jpeg';
 import type { ProcessedImage } from '../db/actions';
-import { sha256Hex } from './blob-port';
+import { isHighQuality, sha256Hex } from './blob-port';
 import { writeBlob } from './blobs';
 
 const MAIN_EDGE = 2048; // 設計 §7.2
+const HQ_EDGE = 4096; // 「画像を高画質で添付」がオンのとき
 const THUMB_EDGE = 320;
 
 
@@ -29,7 +30,7 @@ async function store(tmpUri: string): Promise<{ hash: string; size: number }> {
 
 /** 選んだ画像 → 本体（長辺 2048px）とサムネイル（長辺 320px）を端末に保存する */
 export async function importImage(uri: string): Promise<ProcessedImage> {
-  const main = await toJpeg(uri, MAIN_EDGE, 0.8);
+  const main = await toJpeg(uri, isHighQuality() ? HQ_EDGE : MAIN_EDGE, isHighQuality() ? 0.9 : 0.8);
   const thumb = await toJpeg(main.uri, THUMB_EDGE, 0.7);
   const m = await store(main.uri);
   const t = await store(thumb.uri);

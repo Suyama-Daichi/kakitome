@@ -18,7 +18,7 @@ export interface BlobPort {
   /** 削除されていない添付のサムネイルで、端末に無いもの */
   missingThumbs(): string[];
   sha256(bytes: Uint8Array): Promise<string>;
-  /** 「Wi-Fi 接続時のみ」設定と回線から、本体を今送受信してよいか */
+  /** 本体を今送受信してよいか */
   allowBodies(): Promise<boolean>;
 
   // --- 後始末（設計 §7.4）

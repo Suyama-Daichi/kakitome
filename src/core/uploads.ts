@@ -1,5 +1,4 @@
 // 画像のアップロード順序（設計 §7.3）: サムネイル → op → 本体。
-// 「本体は Wi-Fi のみ」の設定は本体だけが対象で、サムネイルと op は回線に関わらず送る。
 import type { Op } from './ops';
 
 export interface BlobState {
@@ -20,7 +19,7 @@ export interface UploadInput {
   /** 削除されていない添付 */
   attachments: AttachmentRef[];
   blobs: Map<string, BlobState>;
-  /** 本体を今送ってよいか（Wi-Fi 限定設定と回線から算出） */
+  /** 本体を今送ってよいか */
   allowBodies: boolean;
 }
 
