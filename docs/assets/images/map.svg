@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" font-family="Hiragino Sans, Noto Sans JP, Yu Gothic, system-ui, sans-serif">
+<rect width="600" height="600" fill="#eef1ee"/>
+<rect x="20" y="40" width="150" height="110" rx="12" fill="#cfe8d3"/><rect x="380" y="330" width="170" height="130" rx="12" fill="#cfe8d3"/><rect x="60" y="400" width="110" height="80" rx="12" fill="#cfe8d3"/>
+<path d="M-10 250 C 120 210, 220 300, 330 262 S 520 200, 620 240" stroke="#b9d9ee" stroke-width="42" fill="none"/>
+<g stroke="#fff" stroke-width="16" fill="none" stroke-linecap="round"><path d="M0 120 H600"/><path d="M0 360 H600"/><path d="M0 520 H600"/><path d="M110 0 V600"/><path d="M300 0 V600"/><path d="M470 0 V600"/></g>
+<g stroke="#e3e8e5" stroke-width="3"><path d="M0 120 H600"/><path d="M0 360 H600"/><path d="M110 0 V600"/><path d="M300 0 V600"/></g>
+<path d="M110 460 V360 H300 V120 H470" stroke="#fff" stroke-width="14" fill="none"/>
+<path d="M110 460 V360 H300 V120 H470" stroke="#00897b" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1 0"/>
+<circle cx="110" cy="460" r="14" fill="#fff" stroke="#00897b" stroke-width="7"/>
+<g transform="translate(470 120)"><path d="M0 0 C -26 -34 -26 -62 0 -62 C 26 -62 26 -34 0 0Z" fill="#e53935"/><circle cx="0" cy="-42" r="9" fill="#fff"/></g>
+<rect x="408" y="148" width="124" height="34" rx="8" fill="#fff" opacity=".95"/><text x="470" y="171" font-size="18" font-weight="700" fill="#0f1a18" text-anchor="middle">西ヶ丘駅</text>
+<rect x="24" y="500" width="552" height="78" rx="16" fill="#fff"/>
+<text x="48" y="539" font-size="28" font-weight="700" fill="#0f1a18">徒歩 12 分</text><text x="48" y="565" font-size="17" fill="#5d6e6a">850 m · ホテルまで</text>
+<rect x="448" y="518" width="104" height="42" rx="21" fill="#00897b"/><text x="500" y="546" font-size="18" font-weight="700" fill="#fff" text-anchor="middle">ルート</text>
+</svg>
