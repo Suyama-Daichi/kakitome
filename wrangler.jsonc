@@ -1,0 +1,10 @@
+{
+  "name": "kakitome",
+  "compatibility_date": "2026-10-04",
+  "assets": {
+    "directory": "./dist",
+    // Web は 1 つの index.html から動くので、/note/xxx の再読み込みも index.html に回す
+    "not_found_handling": "single-page-application"
+  },
+  "previews": {}
+}
