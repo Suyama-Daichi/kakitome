@@ -26,3 +26,4 @@ Expo（Development Build）/ Expo Router / TypeScript / expo-sqlite / react-nati
 
 - 同期コアはテストファーストで実装する。収束性（順不同・重複適用でも同じ状態になること）はプロパティベーステストで検証する
 - 実装の優先順は `docs/design.md` の「実装ロードマップ」に従う
+- 作業を始める前に、main から作業ブランチを切る（例: `feat/…`、`docs/…`）。main に直接変更を加えない
