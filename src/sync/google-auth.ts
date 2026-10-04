@@ -1,6 +1,7 @@
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Platform } from 'react-native';
 import { DRIVE_APPDATA_SCOPE, IOS_CLIENT_ID, WEB_CLIENT_ID } from './config';
+import { isRevokedError, REVOKED_MESSAGE } from './revoked';
 
 /** iOS は iOS 用クライアント ID が無いと設定自体が例外になる。未設定の間はサインインを利用不可として扱う */
 export const googleAvailable = Platform.OS !== 'ios' || IOS_CLIENT_ID !== null;
@@ -27,9 +28,16 @@ export async function getAccessToken(): Promise<string> {
   } catch {
     // 起動直後は、前回のサインインがまだ現在のユーザーとして復元されていないことがある（特に iOS）。
     // 無言で復元してから、もう一度取る
-    const r = await GoogleSignin.signInSilently();
-    if (r.type !== 'success') throw new Error('Google にサインインしていません');
-    return (await GoogleSignin.getTokens()).accessToken;
+    try {
+      const r = await GoogleSignin.signInSilently();
+      if (r.type !== 'success') throw new Error('Google にサインインしていません');
+      return (await GoogleSignin.getTokens()).accessToken;
+    } catch (e) {
+      if (!isRevokedError(e)) throw e;
+      // Google のアカウント設定で許可が取り消された。サインアウト状態にして、設定からやり直してもらう
+      await GoogleSignin.signOut().catch(() => {});
+      throw new Error(REVOKED_MESSAGE);
+    }
   }
 }
 

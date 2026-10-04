@@ -81,9 +81,12 @@ export default function Settings() {
           </Pressable>
         </>
       ) : (
-        <Pressable style={styles.button} disabled={busy} onPress={() => run(signIn, '')}>
-          <Text style={styles.buttonText}>Google アカウントで同期を始める</Text>
-        </Pressable>
+        <>
+          {info.error?.includes('取り消') ? <Text style={styles.error}>{info.error}</Text> : null}
+          <Pressable style={styles.button} disabled={busy} onPress={() => run(signIn, '')}>
+            <Text style={styles.buttonText}>Google アカウントで同期を始める</Text>
+          </Pressable>
+        </>
       )}
       <View style={styles.section}>
         <Text style={styles.heading}>画像</Text>

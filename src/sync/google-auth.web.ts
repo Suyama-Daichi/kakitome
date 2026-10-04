@@ -53,11 +53,8 @@ export async function signIn(): Promise<boolean> {
   return new Promise<boolean>(() => {});
 }
 
-export const signOut = async () => {
-  const s = saved();
-  localStorage.removeItem(KEY);
-  if (s) await fetch(`https://oauth2.googleapis.com/revoke?token=${s.token}`, { method: 'POST' }).catch(() => {});
-};
+// Google の取り消し API は呼ばない: 他の端末のサインインにまで影響するおそれがある。トークンは約 1 時間で自然に切れる
+export const signOut = async () => localStorage.removeItem(KEY);
 
 export async function getAccessToken(): Promise<string> {
   const s = saved();
