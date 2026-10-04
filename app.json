@@ -34,6 +34,10 @@
         "android.permission.FOREGROUND_SERVICE"
       ]
     },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
     "plugins": [
       "expo-router",
       [

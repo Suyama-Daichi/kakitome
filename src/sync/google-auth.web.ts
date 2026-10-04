@@ -16,6 +16,7 @@ function takeRedirect() {
   if (!token) return;
   history.replaceState(null, '', location.pathname + location.search);
   if (q.get('state') !== sessionStorage.getItem(STATE_KEY)) return; // 自分が始めたサインインではない
+  sessionStorage.removeItem(STATE_KEY); // 1 回限り
   const saved: Saved = { token, expiresAt: Date.now() + Number(q.get('expires_in') ?? 0) * 1000 };
   localStorage.setItem(KEY, JSON.stringify(saved));
 }

@@ -3,7 +3,7 @@
 > kakitome（書き留め／書留）— チェックリスト・リマインド・Android ウィジェットに対応した、サーバーを持たないローカルファーストのメモアプリ。
 
 - ステータス: 設計確定（実装前）
-- 対象プラットフォーム: iOS / Android
+- 対象プラットフォーム: iOS / Android / Web（Web は §2.4 の範囲）
 
 ---
 
@@ -81,7 +81,7 @@ Expo を選んだ理由: 全要件が Expo のまま（Kotlin / Swift を書か�
 
 ### 2.2 実装上の取り決め（依存・開発用コード）
 
-- 依存は、使うものだけにする。`create-expo-app` のテンプレートが入れる `expo-font` `expo-device` `expo-symbols` `expo-glass-effect` `expo-web-browser` `expo-status-bar` `@expo/ui` `react-native-reanimated` `react-native-worklets` `react-native-gesture-handler` `react-native-web` `react-dom` は削除済み（Web は対象外。`expo-router` の optional peer のため外せる）。`expo-linking` `expo-constants` `react-native-safe-area-context` `react-native-screens` は `expo-router` の必須 peer
+- 依存は、使うものだけにする。`create-expo-app` のテンプレートが入れる `expo-font` `expo-device` `expo-symbols` `expo-glass-effect` `expo-web-browser` `expo-status-bar` `@expo/ui` `react-native-reanimated` `react-native-worklets` `react-native-gesture-handler` は削除済み（`react-native-web` `react-dom` は Web 対応のため再度追加した）。`expo-linking` `expo-constants` `react-native-safe-area-context` `react-native-screens` は `expo-router` の必須 peer
 - 開発ビルド専用の操作（競合の再現、圧縮の強制、Drive 上のファイル削除など）は `src/dev/DevTools.tsx` にまとめ、設定画面は `__DEV__` のときだけ読み込む
 
 ### 2.3 iOS 対応の取り決め
@@ -93,6 +93,21 @@ Expo を選んだ理由: 全要件が Expo のまま（Kotlin / Swift を書か�
 - **Google サインイン後の最初のトークン取得**: 起動直後は、前回のサインインがライブラリの「現在のユーザー」として復元されておらず `getTokens` が失敗することがある。失敗したら `signInSilently` で復元してから取り直す（iOS シミュレータで再現・解消を確認）
 - **検証（iOS 27 シミュレータ＋実 Drive）**: Google サインイン後、新しい端末として同期し、Android の端末と同じ内容（ノート 3・項目 5・画像 1・リマインド 2・op 36 件）が届く。サムネイルは先読みされ、本体は表示時に取得される
 - **未確認**: iOS での編集・画像追加・リマインド（通知の予約と発火）・全画面表示の画面操作。シミュレータの画面操作を自動化する手段が無く、手元での確認が要る
+
+### 2.4 Web 対応の取り決め
+
+静的ホスティング（`expo export -p web`、`app.json` の `web.output` は `single`）に配信する SPA。画面はモバイル版と同じ（広い画面では幅 640px の 1 列を中央に置く）。プラットフォームの差は `*.web.ts` に分ける。
+
+- **DB**: expo-sqlite の Web 版（wa-sqlite＋OPFS、alpha）。同期 API は SharedArrayBuffer を使うため、cross-origin isolation（`Cross-Origin-Opener-Policy: same-origin`、`Cross-Origin-Embedder-Policy: require-corp`）が要る。開発サーバーは `metro.config.js`、配信は `public/_headers`（Cloudflare Pages / Netlify 形式。他のホストは同じヘッダーを設定する）。`.wasm` は `metro.config.js` でアセットに加える
+- **同期 API の制約**: 待てる時間が短く、結果は約 1MB まで。ワーカーの起動前や重い処理（スキーマ作成・初回の書き込み）は間に合わないので、起動時に `initDb()` で非同期に開き、スキーマ作成と書き込みの予熱まで済ませてから画面を出す（`src/db/ready.ts`）。画像の実体は 1MB を超えうるので、非同期 API で読み書きする
+- **画像**: 実体はファイルではなく SQLite の `blob_data` テーブル（`src/media/blobs.web.ts`）。縮小・JPEG 化は canvas（再エンコードで EXIF は落ちる。`stripJpegMetadata` も通す。`process.web.ts`）。表示は `BlobImage`（`blobUri` で object URL を作る）
+- **Google サインイン**: COOP: same-origin の下ではポップアップ方式（Google Identity Services）が動かないため、リダイレクト型の OAuth（implicit）を自前で行う（`google-auth.web.ts`）。スコープは `drive.appdata` のみ。アクセストークンは約 1 時間で切れ、リフレッシュはできない。切れたら未サインイン扱いになり、設定からもう一度サインインする（同意済みなら画面は一瞬）。メールアドレスは取れない（スコープを増やさないため）。Google Cloud のウェブ クライアントに、配信元の URL を「承認済みの JavaScript 生成元」と「承認済みのリダイレクト URI」（`<配信元>/`）として登録する
+- **対象外**: リマインドの通知（日時の入力・保存・同期はできるが、Web では鳴らさない。他端末では鳴る）、ウィジェット、バックグラウンド同期（起動時・表示に戻ったとき・編集の 5 秒後は動く）、引っ張って同期（設定の「今すぐ同期」を使う）、通知のタップで開く動作
+- **Wi-Fi 限定設定**: ブラウザは回線の種別を教えないため、Web では常に許可として扱う
+- **既知の制約**: 同じ origin のタブを複数開くと、OPFS の排他で 2 つ目は DB を開けない。DB は端末（ブラウザ）ごと。サイトデータを消すと消える（Drive に同期していれば復元できる）
+- **未確認**: Safari・Firefox での動作、実際の Google アカウントでのサインインと同期（擬似トークンで取り込みと Drive 呼び出しまでは確認）、配信先での COOP/COEP ヘッダー
+
+---
 
 ## 3. データモデル
 
@@ -516,6 +531,7 @@ app/               Expo Router の画面
 | 13 | 競合コピーの ID | 元メモ ID＋敗者 op ID＋フィールド名 | 1つの op で title/body 両方が負けた場合の ID 衝突を避ける |
 | 14 | ウィジェットの表示メモ | ウィジェットごとに選択。端末ローカルで同期しない | 端末ごとにホーム画面の構成が違う。未選択は一覧の先頭（並び替えに追従） |
 | 15 | 画面のデザイン | ティール＋黄色のカード型。ライト／ダーク対応（端末設定に従う）。アイコンは `@expo/vector-icons`、フォントは端末のもの | アイコンに合わせた配色に統一。フォントは依存と容量を増やさないため端末で代用。配色は `src/ui/theme.ts`（`usePalette`）に集約 |
+| 16 | Web 対応 | 対象に加える。同期もする。通知・ウィジェット・バックグラウンド同期は対象外 | ブラウザからも使いたいという要望。同期コアは純粋 TS なのでそのまま使え、差は DB・画像・認証・通知の入口だけ。詳細は §2.4 |
 
 ---
 

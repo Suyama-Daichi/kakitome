@@ -7,6 +7,12 @@ export function blobFile(hash: string): File {
   return new File(Paths.document, 'blobs', hash);
 }
 
+/** 表示用の URL。端末のファイルならそのまま使える（Web は非同期に作る: blobs.web.ts） */
+export async function blobUri(hash: string): Promise<string | null> {
+  const f = blobFile(hash);
+  return f.exists ? f.uri : null;
+}
+
 export function writeBlob(hash: string, bytes: Uint8Array): void {
   dir().create({ intermediates: true, idempotent: true });
   const f = blobFile(hash);

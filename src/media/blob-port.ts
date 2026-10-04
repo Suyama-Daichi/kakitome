@@ -57,7 +57,7 @@ export function createBlobPort(): BlobPort {
     read: async (hash) => blobFile(hash).bytes(),
 
     save: async (hash, bytes) => {
-      writeBlob(hash, bytes);
+      await writeBlob(hash, bytes);
       db.runSync(
         "INSERT INTO blobs (hash, local_path, uploaded, last_used) VALUES (?, ?, 1, ?) ON CONFLICT(hash) DO UPDATE SET local_path = excluded.local_path, uploaded = 1, last_used = excluded.last_used",
         hash, `blobs/${hash}`, new Date().toISOString(),

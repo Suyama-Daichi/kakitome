@@ -20,7 +20,7 @@ async function toJpeg(src: ImageBitmap, maxEdge: number, quality: number) {
 
 async function store(bytes: Uint8Array) {
   const hash = await sha256Hex(bytes as Uint8Array<ArrayBuffer>);
-  writeBlob(hash, bytes);
+  await writeBlob(hash, bytes);
   return { hash, size: bytes.length };
 }
 

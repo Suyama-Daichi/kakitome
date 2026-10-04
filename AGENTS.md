@@ -1,6 +1,6 @@
 # kakitome
 
-チェックリスト・リマインド・Android ウィジェットに対応した、サーバーを持たないローカルファーストのメモアプリ（Expo / iOS・Android）。
+チェックリスト・リマインド・Android ウィジェットに対応した、サーバーを持たないローカルファーストのメモアプリ（Expo / iOS・Android・Web）。
 
 設計の詳細は必ず `docs/design.md` を参照すること。設計と異なる実装が必要になった場合は、実装前にユーザーに確認し、合意後に `docs/design.md`（特に「意思決定ログ」）も更新すること。
 
@@ -18,7 +18,7 @@
 
 ## 技術スタック
 
-Expo（Development Build）/ Expo Router / TypeScript / expo-sqlite / react-native-android-widget / Google Drive API v3 / expo-notifications / expo-image-picker / expo-image-manipulator / expo-file-system / @react-native-community/netinfo
+Expo（Development Build）/ Expo Router / TypeScript / expo-sqlite / react-native-android-widget / Google Drive API v3 / expo-notifications / expo-image-picker / expo-image-manipulator / expo-file-system / react-native-web（Web。DB・画像・認証・通知の差は `*.web.ts`、詳細は `docs/design.md` §2.4）/ @react-native-community/netinfo
 
 ライブラリの使い方は、公式ドキュメントを一次情報として確認すること。
 

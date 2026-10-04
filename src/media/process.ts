@@ -22,7 +22,7 @@ async function store(tmpUri: string): Promise<{ hash: string; size: number }> {
   const tmp = new File(tmpUri);
   const bytes = stripJpegMetadata(await tmp.bytes());
   const hash = await sha256Hex(bytes);
-  writeBlob(hash, bytes);
+  await writeBlob(hash, bytes);
   tmp.delete();
   return { hash, size: bytes.length };
 }

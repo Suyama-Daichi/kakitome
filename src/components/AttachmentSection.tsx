@@ -1,12 +1,11 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addAttachment, deleteAttachment } from '../db/actions';
 import { subscribeDbChanges } from '../db/changes';
 import { listAttachments, type AttachmentView } from '../db/queries';
-import { blobFile } from '../media/blobs';
+import { BlobImage } from '../media/BlobImage';
 import { touchBlob } from '../media/blob-port';
 import { ensureBody, type BodyResult } from '../media/body';
 import { importImage } from '../media/process';
@@ -41,8 +40,6 @@ export function AttachmentSection({ noteId }: { noteId: string }) {
     }
   };
 
-  const fileUri = (hash: string) => blobFile(hash).uri;
-
   // 本体が未取得なら、表示するときに取得する（Wi-Fi 限定設定に従う）
   const open = async (a: AttachmentView) => {
     setViewing(a);
@@ -65,7 +62,7 @@ export function AttachmentSection({ noteId }: { noteId: string }) {
             <View key={a.id}>
               <Pressable onPress={() => void open(a)} accessibilityLabel="画像を表示">
                 {a.has_thumb ? (
-                  <Image source={{ uri: fileUri(a.thumb_hash) }} style={styles.thumb} contentFit="cover" />
+                  <BlobImage hash={a.thumb_hash} style={styles.thumb} contentFit="cover" />
                 ) : (
                   <View style={[styles.thumb, styles.placeholder]}>
                     <Text style={styles.placeholderText}>Wi-Fi 接続時に同期されます</Text>
@@ -86,7 +83,7 @@ export function AttachmentSection({ noteId }: { noteId: string }) {
         <Pressable style={styles.viewer} onPress={() => setViewing(null)}>
           {viewing ? (
             viewing.has_body || viewing.has_thumb ? (
-              <Image source={{ uri: fileUri(viewing.has_body ? viewing.hash : viewing.thumb_hash) }} style={styles.full} contentFit="contain" />
+              <BlobImage hash={viewing.has_body ? viewing.hash : viewing.thumb_hash} style={styles.full} contentFit="contain" />
             ) : null
           ) : null}
           {viewing && !viewing.has_body ? (

@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { useDbReady } from '../db/ready';
 import { useOpenOnNotificationTap } from '../notifications/use-open-on-tap';
 import { reconcileReminders } from '../notifications/reconcile';
@@ -26,22 +27,30 @@ function App() {
   }, []);
   // 配色は端末のライト／ダーク設定に従う。ヘッダーも同じ配色にする
   return (
-    <>
-      <StatusBar style="auto" />
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: p.bg },
-          headerTintColor: p.ink,
-          headerShadowVisible: false,
-          contentStyle: { backgroundColor: p.bg },
-        }}
-      >
-        <Stack.Screen name="index" options={{ title: '' }} />
-        <Stack.Screen name="note/[id]" options={{ title: '' }} />
-        <Stack.Screen name="conflict/[id]" options={{ title: '競合の解消' }} />
-        <Stack.Screen name="settings" options={{ title: '設定' }} />
-      </Stack>
-      <ToastHost />
-    </>
+    <View style={[styles.outer, { backgroundColor: p.bg }]}>
+      <View style={styles.column}>
+        <StatusBar style="auto" />
+        <Stack
+          screenOptions={{
+            headerStyle: { backgroundColor: p.bg },
+            headerTintColor: p.ink,
+            headerShadowVisible: false,
+            contentStyle: { backgroundColor: p.bg },
+          }}
+        >
+          <Stack.Screen name="index" options={{ title: '' }} />
+          <Stack.Screen name="note/[id]" options={{ title: '' }} />
+          <Stack.Screen name="conflict/[id]" options={{ title: '競合の解消' }} />
+          <Stack.Screen name="settings" options={{ title: '設定' }} />
+        </Stack>
+        <ToastHost />
+      </View>
+    </View>
   );
 }
+
+// 広い画面（Web）では、モバイル版と同じ幅の 1 列を中央に置く
+const styles = StyleSheet.create({
+  outer: { flex: 1 },
+  column: { flex: 1, width: '100%', maxWidth: 640, alignSelf: 'center' },
+});
