@@ -187,6 +187,9 @@ export interface ConflictView {
   theirs: string;
   /** 元メモの現在の値 */
   ours: string;
+  /** 現在の値・競合コピーの値が、この端末の編集か（他の端末の編集なら false） */
+  oursMine: boolean;
+  theirsMine: boolean;
   /** 分岐元の値。圧縮などで取り出せないときは null */
   base: string | null;
 }
@@ -205,14 +208,22 @@ export function baseValue(baseHlc: string | null, noteId: string, field: string)
   return null;
 }
 
-function toConflict(r: { id: string; conflict_of: string; conflict_field: string; conflict_base_hlc: string | null; copy_val: string; orig_val: string | null }): ConflictView {
+function toConflict(r: { id: string; conflict_of: string; conflict_field: string; conflict_base_hlc: string | null; copy_val: string; orig_val: string | null; copy_hlc: string | null; orig_hlc: string | null }): ConflictView {
   const field = r.conflict_field as 'title' | 'body';
-  return { copyId: r.id, noteId: r.conflict_of, field, theirs: r.copy_val, ours: r.orig_val ?? '', base: baseValue(r.conflict_base_hlc, r.conflict_of, field) };
+  const me = getDb().getFirstSync<{ value: string }>("SELECT value FROM sync_state WHERE key = 'device_id'")?.value;
+  const device = (hlc: string | null) => hlc?.split(':').slice(2).join(':').replace(/^conflict-/, ''); // 競合コピーの HLC は conflict-<元の端末ID>
+  return {
+    copyId: r.id, noteId: r.conflict_of, field, theirs: r.copy_val, ours: r.orig_val ?? '',
+    oursMine: !!me && device(r.orig_hlc) === me, theirsMine: !!me && device(r.copy_hlc) === me,
+    base: baseValue(r.conflict_base_hlc, r.conflict_of, field),
+  };
 }
 
 const CONFLICT_SQL = `SELECT c.id, c.conflict_of, c.conflict_field, c.conflict_base_hlc,
     CASE c.conflict_field WHEN 'title' THEN c.title ELSE c.body END AS copy_val,
-    CASE c.conflict_field WHEN 'title' THEN o.title ELSE o.body END AS orig_val
+    CASE c.conflict_field WHEN 'title' THEN o.title ELSE o.body END AS orig_val,
+    (SELECT hlc FROM field_clocks WHERE entity = 'note' AND entity_id = c.id AND field = c.conflict_field) AS copy_hlc,
+    (SELECT hlc FROM field_clocks WHERE entity = 'note' AND entity_id = c.conflict_of AND field = c.conflict_field) AS orig_hlc
   FROM notes c LEFT JOIN notes o ON o.id = c.conflict_of
   WHERE c.deleted = 0 AND c.conflict_of IS NOT NULL`;
 

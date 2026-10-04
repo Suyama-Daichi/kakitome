@@ -28,6 +28,11 @@ function Diff({ from, to, title }: { from: string; to: string; title: string }) 
 
 function Resolver({ c, onDone }: { c: ConflictView; onDone: () => void }) {
   const [p, styles] = useThemed(makeStyles);
+  // 現在の値・コピーの値を、どの端末の編集かで呼び分ける。どちらも他の端末なら新旧で区別する
+  const who = (mine: boolean) => (mine ? 'この端末' : '他の端末');
+  const same = c.oursMine === c.theirsMine;
+  const oursL = who(c.oursMine) + (same ? '（新しい編集）' : '');
+  const theirsL = who(c.theirsMine) + (same ? '（古い編集）' : '');
   const [mode, setMode] = useState<'choose' | 'merge'>('choose');
   const merged = useMemo(() => (c.base !== null ? mergeThreeWay(c.base, c.ours, c.theirs) : null), [c]);
   // 手動マージの初期値: 分岐元があれば自動マージ結果、無ければ両方を並べる
@@ -43,14 +48,14 @@ function Resolver({ c, onDone }: { c: ConflictView; onDone: () => void }) {
     <View style={styles.card}>
       <Text style={styles.heading}>{FIELD[c.field]}の競合</Text>
       <Text style={styles.note}>
-        別の端末の編集と同時に変更されました。{c.base === null ? '分岐元が残っていないため、現在とコピーの違いだけを表示します。' : '分岐元からの変更を表示します。'}
+        別の端末の編集と同時に変更されました。{c.base === null ? `分岐元が残っていないため、${oursL}と${theirsL}の違いだけを表示します。` : '分岐元からの変更を表示します。'}
       </Text>
-      {c.base !== null ? <Diff from={c.base} to={c.ours} title="現在の値（分岐元からの変更）" /> : <Text style={styles.value}>現在の値{'\n'}{c.ours || '（空）'}</Text>}
-      {c.base !== null ? <Diff from={c.base} to={c.theirs} title="競合コピーの値（分岐元からの変更）" /> : <Diff from={c.ours} to={c.theirs} title="現在 → 競合コピー" />}
+      {c.base !== null ? <Diff from={c.base} to={c.ours} title={`${oursL}の値（分岐元からの変更）`} /> : <Text style={styles.value}>{oursL}の値{'\n'}{c.ours || '（空）'}</Text>}
+      {c.base !== null ? <Diff from={c.base} to={c.theirs} title={`${theirsL}の値（分岐元からの変更）`} /> : <Diff from={c.ours} to={c.theirs} title={`${oursL} → ${theirsL}`} />}
       {mode === 'choose' ? (
         <View style={styles.actions}>
-          <Pressable style={styles.button} onPress={() => finish(c.ours)}><Text style={styles.buttonText}>現在の値を採用</Text></Pressable>
-          <Pressable style={styles.button} onPress={() => finish(c.theirs)}><Text style={styles.buttonText}>コピーの値を採用</Text></Pressable>
+          <Pressable style={styles.button} onPress={() => finish(c.ours)}><Text style={styles.buttonText}>{oursL}の値を採用</Text></Pressable>
+          <Pressable style={styles.button} onPress={() => finish(c.theirs)}><Text style={styles.buttonText}>{theirsL}の値を採用</Text></Pressable>
           <Pressable style={[styles.button, styles.secondary]} onPress={() => setMode('merge')}><Text style={[styles.buttonText, styles.secondaryText]}>手動でマージ</Text></Pressable>
         </View>
       ) : (

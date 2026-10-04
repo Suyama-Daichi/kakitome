@@ -23,6 +23,7 @@ export async function initDb() {
   const d = await openDatabaseAsync('kakitome.db');
   await d.execAsync(PRAGMAS); // 同期 API は待てる時間が短く、スキーマ作成は間に合わない
   await d.execAsync(SCHEMA);
+  await d.execAsync('CREATE TABLE _warm (x); DROP TABLE _warm;'); // 初回の書き込み（OPFS のファイル確保）も同期 API の待ち時間に収まらないので、先に済ませる
   db = d;
 }
 
