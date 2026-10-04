@@ -228,7 +228,7 @@ const makeStyles = (p: Palette) =>
     titleInput: { ...type.noteTitle, color: p.ink, paddingVertical: 8, paddingHorizontal: 6 },
     card: { backgroundColor: p.surface, borderColor: p.border, borderWidth: 1, borderRadius: radius.card, paddingVertical: 10, paddingHorizontal: space.cardPad },
     cardLabel: { ...type.label, color: p.inkFaint },
-    bodyInput: { ...type.body, color: p.ink, minHeight: 60, textAlignVertical: 'top' },
+    bodyInput: { ...type.body, color: p.ink, minHeight: 180, textAlignVertical: 'top' },
     progressRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
     bar: { flex: 1, height: size.progress, borderRadius: 2, backgroundColor: p.border, overflow: 'hidden' },
     barFill: { height: size.progress, backgroundColor: p.accent },
