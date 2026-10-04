@@ -37,7 +37,7 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: p.bg },
         }}
       >
-        <Stack.Screen name="index" options={{ title: 'kakitome' }} />
+        <Stack.Screen name="index" options={{ title: '' }} />
         <Stack.Screen name="note/[id]" options={{ title: '' }} />
         <Stack.Screen name="conflict/[id]" options={{ title: '競合の解消' }} />
         <Stack.Screen name="settings" options={{ title: '設定' }} />

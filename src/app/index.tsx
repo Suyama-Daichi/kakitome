@@ -1,13 +1,14 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, PanResponder, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActionSheetIOS, Alert, Animated, Modal, Platform, PanResponder, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { createNote, moveNote, toggleItem, updateNote } from '../db/actions';
 import { ReminderSection } from '../components/ReminderSection';
 import { subscribeDbChanges } from '../db/changes';
-import { doneItems, lastSyncError, listNotes, type NoteRow } from '../db/queries';
+import { doneItems, lastSyncError, listNotes, type NoteRow, type NoteSort } from '../db/queries';
 import { onLocalChange, scheduler } from '../sync/auto';
 import { isSignedIn } from '../sync/google-auth';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { radius, size, space, type, useThemed, type Palette } from '../ui/theme';
 
 const SWIPE_DELETE = -96;
@@ -66,7 +67,11 @@ const fmtWhen = (iso: string) => {
 export default function NoteList() {
   const [p, styles] = useThemed(makeStyles);
   const [notes, setNotes] = useState<NoteRow[]>([]);
-  const reload = useCallback(() => setNotes(listNotes()), []);
+  const insets = useSafeAreaInsets();
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<NoteSort>('manual');
+  const reload = useCallback(() => setNotes(listNotes(query, sort)), [query, sort]);
+  const canDrag = sort === 'manual' && !query; // 並び替えは手動順で、絞り込みなしのときだけ
   useFocusEffect(reload);
   useEffect(() => subscribeDbChanges(reload), [reload]);
 
@@ -133,6 +138,23 @@ export default function NoteList() {
     else next.add(id);
     setRemindOpen(next);
   };
+  const SORTS: { label: string; value: NoteSort }[] = [
+    { label: '手動', value: 'manual' },
+    { label: 'リマインドが近い順', value: 'reminder' },
+    { label: '作成が新しい順', value: 'created' },
+    { label: 'タイトル順', value: 'title' },
+  ];
+  const [sortMenu, setSortMenu] = useState(false);
+  const chooseSort = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { title: '並び替え', options: [...SORTS.map((o) => o.label), 'キャンセル'], cancelButtonIndex: SORTS.length },
+        (i) => i < SORTS.length && setSort(SORTS[i].value),
+      );
+    } else {
+      setSortMenu(true); // Android の Alert はボタン 3 つまでなので、自前のメニュー
+    }
+  };
   const [toast, setToast] = useState<string | null>(null);
   useEffect(() => {
     if (!toast) return;
@@ -160,15 +182,43 @@ export default function NoteList() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen
-        options={{
-          headerRight: () => (
-            <Pressable onPress={() => router.push('/settings')} accessibilityLabel="設定" style={styles.iconButton}>
-              <MaterialIcons name="settings" size={22} color={p.ink} />
-            </Pressable>
-          ),
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
+      {/* Google Keep のように、一覧の上に検索ボックスを置く。並び替えと設定はボックスの右端 */}
+      <View style={[styles.searchBox, { marginTop: insets.top + 8 }]}>
+        <MaterialIcons name="search" size={22} color={p.inkMuted} />
+        <TextInput
+          style={styles.searchInput}
+          value={query}
+          onChangeText={setQuery}
+          placeholder="メモを検索"
+          placeholderTextColor={p.inkMuted}
+          returnKeyType="search"
+          autoCorrect={false}
+        />
+        {query ? (
+          <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityLabel="検索をクリア">
+            <MaterialIcons name="close" size={20} color={p.inkMuted} />
+          </Pressable>
+        ) : null}
+        <Pressable onPress={chooseSort} accessibilityLabel="並び替え" hitSlop={6} style={styles.iconButton}>
+          <MaterialIcons name="sort" size={22} color={sort === 'manual' ? p.ink : p.accentText} />
+        </Pressable>
+        <Pressable onPress={() => router.push('/settings')} accessibilityLabel="設定" hitSlop={6} style={styles.iconButton}>
+          <MaterialIcons name="settings" size={22} color={p.ink} />
+        </Pressable>
+      </View>
+      <Modal visible={sortMenu} transparent animationType="fade" onRequestClose={() => setSortMenu(false)}>
+        <Pressable style={styles.menuBackdrop} onPress={() => setSortMenu(false)}>
+          <View style={[styles.menu, { top: insets.top + 60 }]}>
+            {SORTS.map((o) => (
+              <Pressable key={o.value} style={styles.menuItem} onPress={() => { setSort(o.value); setSortMenu(false); }}>
+                <Text style={[styles.menuText, sort === o.value && styles.menuTextOn]}>{o.label}</Text>
+                {sort === o.value ? <MaterialIcons name="check" size={18} color={p.accentText} /> : null}
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
       <ScrollView
         scrollEnabled={!drag}
         contentContainerStyle={styles.list}
@@ -181,7 +231,7 @@ export default function NoteList() {
         <Text style={styles.meta}>
           未完了 <Text style={styles.metaOpen}>{openCount}</Text> · 完了 {doneCount} · メモ {notes.length}
         </Text>
-        {notes.length ? null : <Text style={styles.empty}>メモはまだありません</Text>}
+        {notes.length ? null : <Text style={styles.empty}>{query ? '見つかりませんでした' : 'メモはまだありません'}</Text>}
         {notes.map((n, i) => {
           const done = n.total_count - n.open_count;
           const more = n.open_count - n.preview.length;
@@ -247,9 +297,11 @@ export default function NoteList() {
                       <ReminderSection noteId={n.id} />
                     </View>
                   ) : null}
-                  <View style={styles.handleSlot}>
-                    <DragHandle onStart={() => setDrag({ from: i, to: i })} onMove={(dy) => dragMove(i, dy)} onEnd={() => dragEnd(i)} />
-                  </View>
+                  {canDrag ? (
+                    <View style={styles.handleSlot}>
+                      <DragHandle onStart={() => setDrag({ from: i, to: i })} onMove={(dy) => dragMove(i, dy)} onEnd={() => dragEnd(i)} />
+                    </View>
+                  ) : null}
                 </View>
               </SwipeRow>
             </Animated.View>
@@ -317,6 +369,13 @@ const makeStyles = (p: Palette) =>
     remind: { marginTop: 10, marginBottom: 2 },
     handleSlot: { position: 'absolute', top: 4, right: 0 },
     handle: { paddingHorizontal: 10, paddingVertical: 10 },
+    searchBox: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 48, marginHorizontal: space.screen, paddingLeft: 14, paddingRight: 6, backgroundColor: p.surface, borderColor: p.border, borderWidth: 1, borderRadius: 24 },
+    menuBackdrop: { flex: 1 },
+    menu: { position: 'absolute', right: space.screen, minWidth: 200, backgroundColor: p.surface, borderColor: p.border, borderWidth: 1, borderRadius: radius.card, paddingVertical: 6, elevation: 6 },
+    menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 12, paddingHorizontal: 16 },
+    menuText: { ...type.item, color: p.ink },
+    menuTextOn: { color: p.accentText, fontWeight: '600' },
+    searchInput: { flex: 1, ...type.item, color: p.ink, paddingVertical: 0 },
     iconButton: { padding: 6 },
     fab: { position: 'absolute', right: 16, bottom: 32, width: size.fab, height: size.fab, borderRadius: radius.fab, backgroundColor: p.yellow, alignItems: 'center', justifyContent: 'center', elevation: 6, shadowColor: p.shadow },
   });

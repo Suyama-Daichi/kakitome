@@ -48,7 +48,17 @@ export interface NoteRow {
 export const doneItems = (noteId: string) =>
   getDb().getAllSync<Item>('SELECT id, text, checked FROM checklist_items WHERE note_id = ? AND deleted = 0 AND checked = 1 ORDER BY sort_key, id', noteId);
 
-export function listNotes(): NoteRow[] {
+export type NoteSort = 'manual' | 'reminder' | 'created' | 'title';
+const ORDER: Record<NoteSort, string> = {
+  manual: 'n.sort_key, n.id',
+  reminder: 'next_reminder IS NULL, next_reminder, n.sort_key, n.id', // リマインドの無いメモは最後
+  created: 'n.created_at DESC, n.id',
+  title: "COALESCE(NULLIF(n.title, ''), n.body) COLLATE NOCASE, n.id",
+};
+
+/** query はタイトル・本文・項目のテキストに部分一致する（大文字小文字を区別しない） */
+export function listNotes(query = '', sort: NoteSort = 'manual'): NoteRow[] {
+  const like = `%${query.trim().replace(/[\\%_]/g, '\\$&')}%`;
   const db = getDb();
   const rows = db.getAllSync<Omit<NoteRow, 'preview'>>(
     `SELECT n.id, n.title, n.body, n.pinned, n.conflict_of, n.sort_key,
@@ -57,7 +67,11 @@ export function listNotes(): NoteRow[] {
        (SELECT COUNT(*) FROM checklist_items i WHERE i.note_id = n.id AND i.deleted = 0) AS total_count,
        (SELECT COUNT(*) FROM attachments a WHERE a.note_id = n.id AND a.deleted = 0) AS image_count,
        (SELECT MIN(r.fire_at) FROM reminders r WHERE r.note_id = n.id AND r.deleted = 0 AND r.enabled = 1) AS next_reminder
-     FROM notes n WHERE n.deleted = 0 ORDER BY n.pinned DESC, n.sort_key, n.id`,
+     FROM notes n WHERE n.deleted = 0
+       AND (n.title LIKE ?1 ESCAPE '\\' OR n.body LIKE ?1 ESCAPE '\\'
+         OR EXISTS (SELECT 1 FROM checklist_items i WHERE i.note_id = n.id AND i.deleted = 0 AND i.text LIKE ?1 ESCAPE '\\'))
+     ORDER BY n.pinned DESC, ${ORDER[sort]}`,
+    like,
   );
   return rows.map((n) => ({
     ...n,
