@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActionSheetIOS, Animated, Modal, Platform, PanResponder, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActionSheetIOS, Animated, Modal, Platform, PanResponder, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { createNote, moveSorted, toggleItem, updateNote } from '../db/actions';
 import { BlobImage } from '../media/BlobImage';
 import { DragHandle } from '../components/DragHandle';
@@ -45,6 +45,8 @@ const fmtWhen = (iso: string) => {
   const d = new Date(iso);
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
+
+const VIEW_MENU_HEIGHT = 240; // 長押しメニューが画面の下にはみ出さないための概算の高さ
 
 export default function NoteList() {
   const [p, styles] = useThemed(makeStyles);
@@ -131,6 +133,9 @@ export default function NoteList() {
     { label: '画像', value: 'image' },
   ];
   const [viewMenu, setViewMenu] = useState<string | null>(null);
+  const [viewMenuY, setViewMenuY] = useState(0); // 長押しした位置の縦座標
+  const { height: windowHeight } = useWindowDimensions();
+  const openViewMenu = (id: string, y: number) => { setViewMenuY(y); setViewMenu(id); };
   const chooseView = (id: string, v: ListView) => { updateNote(id, { list_view: v }); onLocalChange(); setViewMenu(null); reload(); };
   const chooseSort = () => {
     if (Platform.OS === 'ios') {
@@ -190,19 +195,22 @@ export default function NoteList() {
       </View>
       <Modal visible={sortMenu} transparent animationType="fade" onRequestClose={() => setSortMenu(false)}>
         <Pressable style={styles.menuBackdrop} onPress={() => setSortMenu(false)}>
-          <View style={[styles.menu, { top: insets.top + 60 }]}>
-            {SORTS.map((o) => (
-              <Pressable key={o.value} style={styles.menuItem} onPress={() => { setSort(o.value); setSortMenu(false); }}>
-                <Text style={[styles.menuText, sort === o.value && styles.menuTextOn]}>{o.label}</Text>
-                {sort === o.value ? <MaterialIcons name="check" size={18} color={p.accentText} /> : null}
-              </Pressable>
-            ))}
+          <View style={styles.menuColumn} pointerEvents="box-none">
+            <View style={[styles.menu, { top: insets.top + 60 }]}>
+              {SORTS.map((o) => (
+                <Pressable key={o.value} style={styles.menuItem} onPress={() => { setSort(o.value); setSortMenu(false); }}>
+                  <Text style={[styles.menuText, sort === o.value && styles.menuTextOn]}>{o.label}</Text>
+                  {sort === o.value ? <MaterialIcons name="check" size={18} color={p.accentText} /> : null}
+                </Pressable>
+              ))}
+            </View>
           </View>
         </Pressable>
       </Modal>
       <Modal visible={viewMenu !== null} transparent animationType="fade" onRequestClose={() => setViewMenu(null)}>
-        <Pressable style={[styles.menuBackdrop, styles.center]} onPress={() => setViewMenu(null)}>
-          <View style={[styles.menu, styles.centerMenu]}>
+        <Pressable style={styles.menuBackdrop} onPress={() => setViewMenu(null)}>
+          <View style={styles.menuColumn} pointerEvents="box-none">
+          <View style={[styles.menu, styles.centerMenu, { top: Math.max(insets.top, Math.min(viewMenuY - 24, windowHeight - VIEW_MENU_HEIGHT - 16)) }]}>
             <Text style={styles.menuHead}>メインで表示</Text>
             {VIEWS.map((o) => {
               const on = notes.find((n) => n.id === viewMenu)?.list_view === o.value;
@@ -213,6 +221,7 @@ export default function NoteList() {
                 </Pressable>
               );
             })}
+          </View>
           </View>
         </Pressable>
       </Modal>
@@ -243,11 +252,16 @@ export default function NoteList() {
             >
               <SwipeRow onDelete={() => remove(n)}>
                 <View style={styles.card}>
-                  <Pressable style={({ pressed }) => [styles.cardMain, pressed && styles.pressed]} onPress={() => open(n.id)} onLongPress={() => setViewMenu(n.id)}>
+                  <Pressable style={({ pressed }) => [styles.cardMain, pressed && styles.pressed]} onPress={() => open(n.id)} onLongPress={Platform.OS === 'web' ? undefined : (e) => openViewMenu(n.id, e.nativeEvent.pageY)}>
                     <View style={styles.titleRow}>
                       {n.pinned ? <MaterialIcons name="push-pin" size={16} color={p.yellowText} /> : null}
                       <Text style={styles.title} numberOfLines={1}>{n.title || first || '無題のメモ'}</Text>
                       {n.total_count ? <Text style={styles.count}>{done}/{n.total_count}</Text> : null}
+                      {Platform.OS === 'web' ? (
+                        <Pressable hitSlop={8} onPress={(e) => openViewMenu(n.id, e.nativeEvent.pageY)} accessibilityLabel="メインで表示を切り替え">
+                          <MaterialIcons name="more-vert" size={20} color={p.inkFaint} />
+                        </Pressable>
+                      ) : null}
                     </View>
                     {view === 'memo' ? (
                       n.body ? <Text style={styles.excerpt} numberOfLines={6}>{n.body}</Text> : null
@@ -385,8 +399,9 @@ const makeStyles = (p: Palette) =>
     handleSlot: { position: 'absolute', top: 4, right: 0 },
     searchBox: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 48, marginHorizontal: space.screen, paddingLeft: 14, paddingRight: 6, backgroundColor: p.surface, borderColor: p.border, borderWidth: 1, borderRadius: 24 },
     menuBackdrop: { flex: 1 },
-    center: { justifyContent: 'center', alignItems: 'center' },
-    centerMenu: { position: 'relative', right: undefined, minWidth: 240 },
+    // Web: モーダルは画面全体に広がるので、メニューの右端を本体の 1 列（_layout の column）に合わせる
+    menuColumn: { flex: 1, width: '100%', maxWidth: 640, alignSelf: 'center' },
+    centerMenu: { right: undefined, alignSelf: 'center', minWidth: 240 },
     menuHead: { ...type.caption, color: p.inkFaint, paddingHorizontal: 16, paddingVertical: 8 },
     strip: { gap: 8 },
     stripImg: { width: 88, height: 88, borderRadius: 8 },
