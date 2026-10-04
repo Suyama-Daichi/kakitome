@@ -35,6 +35,7 @@ export interface NoteRow {
   pinned: number;
   conflict_of: string | null;
   sort_key: string;
+  list_view: ListView;
   conflict_count: number;
   open_count: number;
   total_count: number;
@@ -61,7 +62,7 @@ export function listNotes(query = '', sort: NoteSort = 'manual'): NoteRow[] {
   const like = `%${query.trim().replace(/[\\%_]/g, '\\$&')}%`;
   const db = getDb();
   const rows = db.getAllSync<Omit<NoteRow, 'preview'>>(
-    `SELECT n.id, n.title, n.body, n.pinned, n.conflict_of, n.sort_key,
+    `SELECT n.id, n.title, n.body, n.pinned, n.conflict_of, n.sort_key, n.list_view,
        (SELECT COUNT(*) FROM notes c WHERE c.conflict_of = n.id AND c.deleted = 0) AS conflict_count,
        (SELECT COUNT(*) FROM checklist_items i WHERE i.note_id = n.id AND i.deleted = 0 AND i.checked = 0) AS open_count,
        (SELECT COUNT(*) FROM checklist_items i WHERE i.note_id = n.id AND i.deleted = 0) AS total_count,
@@ -176,6 +177,9 @@ export const listAttachments = (noteId: string) =>
      FROM attachments a WHERE a.note_id = ? AND a.deleted = 0 ORDER BY a.sort_key, a.id`,
     noteId,
   );
+
+/** 一覧のカードでメインに見せるもの。'' はチェックリスト（既定）。メモごとの設定で、同期する */
+export type ListView = '' | 'memo' | 'image';
 
 export const maxAttachmentKey = (noteId: string) =>
   getDb().getFirstSync<{ k: string | null }>("SELECT MAX(sort_key) AS k FROM attachments WHERE note_id = ? AND sort_key != ''", noteId)?.k ?? null;

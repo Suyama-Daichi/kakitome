@@ -80,6 +80,10 @@ CREATE TABLE IF NOT EXISTS scheduled_notifications (
 );
 `;
 
+// 後から足した列。CREATE TABLE に入れず、新旧どちらの DB にも同じ ALTER で足す（既に有れば重複列エラーなので呼び側で握りつぶす）
+// ponytail: 列追加が増えたら user_version 管理のマイグレーションへ
+export const ADD_COLUMNS = ["ALTER TABLE notes ADD COLUMN list_view TEXT NOT NULL DEFAULT ''"];
+
 // リモート op の field 名は SQL に埋め込むため、必ずこの許可リストで検証する
 export const TABLE = {
   note: 'notes',
@@ -89,7 +93,7 @@ export const TABLE = {
 } as const;
 
 export const COLUMNS: Record<keyof typeof TABLE, readonly string[]> = {
-  note: ['title', 'body', 'pinned', 'sort_key', 'deleted', 'created_at', 'conflict_of', 'conflict_field', 'conflict_base_hlc'],
+  note: ['title', 'body', 'pinned', 'list_view', 'sort_key', 'deleted', 'created_at', 'conflict_of', 'conflict_field', 'conflict_base_hlc'],
   checklist_item: ['note_id', 'text', 'checked', 'sort_key', 'deleted', 'created_at'],
   reminder: ['note_id', 'fire_at', 'timezone', 'rrule', 'enabled', 'deleted'],
   attachment: ['note_id', 'hash', 'thumb_hash', 'mime', 'width', 'height', 'size', 'sort_key', 'deleted', 'created_at'],

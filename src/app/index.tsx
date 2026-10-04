@@ -3,9 +3,10 @@ import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActionSheetIOS, Animated, Modal, Platform, PanResponder, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { createNote, moveNote, toggleItem, updateNote } from '../db/actions';
+import { BlobImage } from '../media/BlobImage';
 import { ReminderSection } from '../components/ReminderSection';
 import { subscribeDbChanges } from '../db/changes';
-import { doneItems, lastSyncError, listNotes, type NoteRow, type NoteSort } from '../db/queries';
+import { doneItems, lastSyncError, listAttachments, listNotes, type ListView, type NoteRow, type NoteSort } from '../db/queries';
 import { onLocalChange, scheduler } from '../sync/auto';
 import { isSignedIn } from '../sync/google-auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -144,6 +145,14 @@ export default function NoteList() {
     { label: 'タイトル順', value: 'title' },
   ];
   const [sortMenu, setSortMenu] = useState(false);
+  // 長押しで開く、カードのメイン表示の切り替えメニュー
+  const VIEWS: { label: string; value: ListView }[] = [
+    { label: 'チェックリスト', value: '' },
+    { label: 'メモ', value: 'memo' },
+    { label: '画像', value: 'image' },
+  ];
+  const [viewMenu, setViewMenu] = useState<string | null>(null);
+  const chooseView = (id: string, v: ListView) => { updateNote(id, { list_view: v }); onLocalChange(); setViewMenu(null); reload(); };
   const chooseSort = () => {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
@@ -212,6 +221,22 @@ export default function NoteList() {
           </View>
         </Pressable>
       </Modal>
+      <Modal visible={viewMenu !== null} transparent animationType="fade" onRequestClose={() => setViewMenu(null)}>
+        <Pressable style={[styles.menuBackdrop, styles.center]} onPress={() => setViewMenu(null)}>
+          <View style={[styles.menu, styles.centerMenu]}>
+            <Text style={styles.menuHead}>メインで表示</Text>
+            {VIEWS.map((o) => {
+              const on = notes.find((n) => n.id === viewMenu)?.list_view === o.value;
+              return (
+                <Pressable key={o.value} style={styles.menuItem} onPress={() => viewMenu && chooseView(viewMenu, o.value)}>
+                  <Text style={[styles.menuText, on && styles.menuTextOn]}>{o.label}</Text>
+                  {on ? <MaterialIcons name="check" size={18} color={p.accentText} /> : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Modal>
       <ScrollView
         scrollEnabled={!drag}
         contentContainerStyle={styles.list}
@@ -229,6 +254,8 @@ export default function NoteList() {
           const done = n.total_count - n.open_count;
           const more = n.open_count - n.preview.length;
           const first = n.body.split('\n')[0];
+          const view = n.list_view;
+          const list = !view;
           return (
             <Animated.View
               key={n.id}
@@ -237,37 +264,41 @@ export default function NoteList() {
             >
               <SwipeRow onDelete={() => remove(n)}>
                 <View style={styles.card}>
-                  <Pressable style={({ pressed }) => [styles.cardMain, pressed && styles.pressed]} onPress={() => open(n.id)}>
+                  <Pressable style={({ pressed }) => [styles.cardMain, pressed && styles.pressed]} onPress={() => open(n.id)} onLongPress={() => setViewMenu(n.id)}>
                     <View style={styles.titleRow}>
                       {n.pinned ? <MaterialIcons name="push-pin" size={16} color={p.yellowText} /> : null}
                       <Text style={styles.title} numberOfLines={1}>{n.title || first || '無題のメモ'}</Text>
                       {n.total_count ? <Text style={styles.count}>{done}/{n.total_count}</Text> : null}
                     </View>
-                    {n.total_count ? (
+                    {view === 'memo' ? (
+                      n.body ? <Text style={styles.excerpt} numberOfLines={6}>{n.body}</Text> : null
+                    ) : view === 'image' ? (
+                      <ImageStrip noteId={n.id} />
+                    ) : n.total_count ? (
                       <View style={styles.bar}><View style={[styles.barFill, { width: `${(done / n.total_count) * 100}%` }]} /></View>
                     ) : n.title ? (
                       first ? <Text style={styles.excerpt} numberOfLines={2}>{n.body}</Text> : null
                     ) : null}
                   </Pressable>
-                  {n.preview.map((it) => (
+                  {list ? n.preview.map((it) => (
                     <Pressable key={it.id} style={styles.itemRow} onPress={() => check(it.id)} accessibilityLabel="完了にする">
                       <View style={styles.box} />
                       <Text style={styles.itemText} numberOfLines={1}>{it.text}</Text>
                     </Pressable>
-                  ))}
-                  {n.total_count && !n.open_count ? (
+                  )) : null}
+                  {list && n.total_count && !n.open_count ? (
                     <Pressable style={styles.allDone} onPress={() => toggleExpanded(n.id)} accessibilityLabel="完了した項目を表示">
                       <MaterialIcons name="task-alt" size={16} color={p.accentText} />
                       <Text style={styles.allDoneText}>すべて完了</Text>
                       <MaterialIcons name={expanded.has(n.id) ? 'expand-less' : 'expand-more'} size={18} color={p.inkFaint} />
                     </Pressable>
-                  ) : more > 0 || (n.preview.length && done) ? (
+                  ) : list && (more > 0 || (n.preview.length && done)) ? (
                     <Pressable style={styles.moreRow} onPress={() => toggleExpanded(n.id)} accessibilityLabel="完了した項目を表示">
                       <Text style={styles.more}>{more > 0 ? `ほか ${more} 件` : ''}{more > 0 && done ? ' · ' : ''}{done ? `完了 ${done}` : ''}</Text>
                       {done ? <MaterialIcons name={expanded.has(n.id) ? 'expand-less' : 'expand-more'} size={16} color={p.inkFaint} /> : null}
                     </Pressable>
                   ) : null}
-                  {expanded.has(n.id) ? doneItems(n.id).map((it) => (
+                  {list && expanded.has(n.id) ? doneItems(n.id).map((it) => (
                     <Pressable key={it.id} style={styles.itemRow} onPress={() => check(it.id)} accessibilityLabel="未完了に戻す">
                       <View style={[styles.box, styles.boxOn]}><MaterialIcons name="check" size={13} color="#fff" /></View>
                       <Text style={[styles.itemText, styles.itemDone]} numberOfLines={1}>{it.text}</Text>
@@ -305,6 +336,18 @@ export default function NoteList() {
         <MaterialIcons name="add" size={28} color={p.onYellow} />
       </Pressable>
     </View>
+  );
+}
+
+/** 画像モードのカード: 添付のサムネイルを横に並べる（一覧の読み込みごとに引き直す） */
+function ImageStrip({ noteId }: { noteId: string }) {
+  const [, styles] = useThemed(makeStyles);
+  const imgs = listAttachments(noteId);
+  if (!imgs.length) return <Text style={styles.excerpt}>画像はありません</Text>;
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
+      {imgs.map((a) => <BlobImage key={a.id} hash={a.thumb_hash} style={styles.stripImg} contentFit="cover" />)}
+    </ScrollView>
   );
 }
 
@@ -357,6 +400,11 @@ const makeStyles = (p: Palette) =>
     handle: { paddingHorizontal: 10, paddingVertical: 10 },
     searchBox: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 48, marginHorizontal: space.screen, paddingLeft: 14, paddingRight: 6, backgroundColor: p.surface, borderColor: p.border, borderWidth: 1, borderRadius: 24 },
     menuBackdrop: { flex: 1 },
+    center: { justifyContent: 'center', alignItems: 'center' },
+    centerMenu: { position: 'relative', right: undefined, minWidth: 240 },
+    menuHead: { ...type.caption, color: p.inkFaint, paddingHorizontal: 16, paddingVertical: 8 },
+    strip: { gap: 8 },
+    stripImg: { width: 88, height: 88, borderRadius: 8 },
     menu: { position: 'absolute', right: space.screen, minWidth: 200, backgroundColor: p.surface, borderColor: p.border, borderWidth: 1, borderRadius: radius.card, paddingVertical: 6, elevation: 6 },
     menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 12, paddingHorizontal: 16 },
     menuText: { ...type.item, color: p.ink },

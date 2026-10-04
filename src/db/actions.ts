@@ -17,13 +17,13 @@ export function createNote(): string {
   const { ctx, tx } = openCore();
   return tx(() => {
     const id = ctx.newId();
-    applyLocalOp(ctx, 'note', id, { title: '', body: '', pinned: 0, sort_key: keyBetween(null, minNoteKey()), deleted: 0, created_at: nowIso() });
+    applyLocalOp(ctx, 'note', id, { title: '', body: '', pinned: 0, list_view: '', sort_key: keyBetween(null, minNoteKey()), deleted: 0, created_at: nowIso() });
     return id;
   });
 }
 
 /** メモのフィールド更新。値が変わっていないものは op を出さない */
-export function updateNote(id: string, fields: { title?: string; body?: string; pinned?: number; deleted?: number }) {
+export function updateNote(id: string, fields: { title?: string; body?: string; pinned?: number; list_view?: string; deleted?: number }) {
   const cur = getNote(id) as Record<string, Json> | undefined;
   const changed = Object.fromEntries(Object.entries(fields).filter(([k, v]) => v !== undefined && (k === 'deleted' || cur?.[k] !== v)));
   if (!Object.keys(changed).length) return;

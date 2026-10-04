@@ -3,7 +3,7 @@ import { openDatabaseAsync, openDatabaseSync, type SQLiteDatabase } from 'expo-s
 import { v7 as uuidv7 } from 'uuid';
 import { createClock, type Clock } from '../core/hlc';
 import type { Ctx } from '../core/merge';
-import { SCHEMA } from './schema';
+import { ADD_COLUMNS, SCHEMA } from './schema';
 import { SqliteStore } from './sqlite-store';
 
 let db: SQLiteDatabase | undefined;
@@ -11,6 +11,7 @@ const PRAGMAS = 'PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL;'; // ア
 function setup(d: SQLiteDatabase) {
   d.execSync(PRAGMAS);
   d.execSync(SCHEMA);
+  for (const sql of ADD_COLUMNS) try { d.execSync(sql); } catch { /* 追加済み */ }
   return d;
 }
 export function getDb() {
@@ -23,6 +24,7 @@ export async function initDb() {
   const d = await openDatabaseAsync('kakitome.db');
   await d.execAsync(PRAGMAS); // 同期 API は待てる時間が短く、スキーマ作成は間に合わない
   await d.execAsync(SCHEMA);
+  for (const sql of ADD_COLUMNS) await d.execAsync(sql).catch(() => {}); // 追加済みなら重複列エラー
   await d.execAsync('CREATE TABLE _warm (x); DROP TABLE _warm;'); // 初回の書き込み（OPFS のファイル確保）も同期 API の待ち時間に収まらないので、先に済ませる
   db = d;
 }

@@ -133,6 +133,7 @@ CREATE TABLE notes (
   title              TEXT NOT NULL DEFAULT '',
   body               TEXT NOT NULL DEFAULT '',
   pinned             INTEGER NOT NULL DEFAULT 0,
+  list_view          TEXT NOT NULL DEFAULT '',  -- 一覧のカードのメイン表示: '' = チェックリスト | 'memo' | 'image'（§3.5）
   sort_key           TEXT NOT NULL,
   deleted            INTEGER NOT NULL DEFAULT 0,
   created_at         TEXT NOT NULL,
@@ -233,6 +234,7 @@ ORDER BY checked ASC, sort_key ASC;
 
 メモ一覧（`listNotes(query, sort)`）の仕様。どちらも端末ローカルの表示だけの設定で、op は出さず同期もしない。
 
+- カードのメイン表示: カードを長押しすると「チェックリスト（既定）・メモ・画像」を選ぶメニューが開き、そのメモのカードで何を主に見せるかを切り替える。`notes.list_view`（`''`／`'memo'`／`'image'`）のフィールド更新 op として同期する（LWW。他のフィールドと同じ扱い）。既存 DB へは起動時に `ALTER TABLE ... ADD COLUMN` で足す（`ADD_COLUMNS`）。この列を知らない古い版は、許可リストにない列として無視する
 - 検索: 一覧の上の検索ボックス（Google Keep 風。ネイティブヘッダーは出さない）に入力した文字列を、タイトル・本文・チェック項目のテキストに部分一致で絞り込む（大文字小文字を区別しない）
 - 並び替え: 検索ボックス右端のボタンから選ぶ。ピン留めは常に先頭で、その中を次の順に並べる。選択は保存せず、起動時は「手動」
   - 手動（`sort_key`。既定）
