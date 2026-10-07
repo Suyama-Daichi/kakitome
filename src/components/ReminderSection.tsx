@@ -111,11 +111,11 @@ export function ReminderSection({ noteId, startAdding = false }: { noteId: strin
                     onChange={(e) => { const at = new Date(e.target.value); if (!isNaN(at.getTime())) setDraft({ ...draft, at }); }}
                     style={{ font: 'inherit', padding: 8, borderRadius: 8, border: `1px solid ${p.borderControl}`, background: p.surface, color: p.reminderFg, alignSelf: 'flex-start' }}
                   />
-                ) : (
-                  <Pressable onPress={() => Platform.OS === 'android' && pickAndroid(draft.at, (at) => setDraft({ ...draft, at }))}>
+                ) : Platform.OS === 'android' ? (
+                  <Pressable onPress={() => pickAndroid(draft.at, (at) => setDraft({ ...draft, at }))}>
                     <Text style={styles.dateButton}>{fmt(draft.at)}</Text>
                   </Pressable>
-                )}
+                ) : null}
                 {__DEV__ ? (
                   <Pressable onPress={() => setDraft({ ...draft, at: new Date(Date.now() + 90_000) })}>
                     <Text style={styles.hint}>（開発用）90秒後にする</Text>
