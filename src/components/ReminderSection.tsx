@@ -1,7 +1,7 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Modal, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { nextOccurrence, reminderPresets } from '../core/reminders';
 import { addReminder, deleteReminder, setReminderEnabled, updateReminder } from '../db/actions';
 import { subscribeDbChanges } from '../db/changes';
@@ -9,6 +9,7 @@ import { listReminders, type ReminderView } from '../db/queries';
 import { ensureNotificationPermission } from '../notifications/reconcile';
 import { onLocalChange } from '../sync/auto';
 import { notify } from '../ui/dialog';
+import { Sheet } from './Sheet';
 import { radius, space, type, useThemed, type Palette } from '../ui/theme';
 
 const REPEATS = [
@@ -50,20 +51,10 @@ export function ReminderSection({ noteId, startAdding = false }: { noteId: strin
   const [items, setItems] = useState<ReminderView[]>(() => listReminders(noteId));
   const reload = useCallback(() => setItems(listReminders(noteId)), [noteId]);
   const [draft, setDraft] = useState<{ id?: string; at: Date; rrule: string | null } | null>(() => (startAdding ? { at: nextHour(), rrule: null } : null));
-  // 背景はフェード、シートだけ下から上げる（Modal の slide は背景ごと動くため）
-  const open = !!draft;
-  const rise = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (!open) return;
-    rise.setValue(0);
-    Animated.timing(rise, { toValue: 1, duration: 250, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-  }, [open, rise]);
-  // シートを下げてから閉じる（先に消すと背景だけが残る）
-  const close = () => Animated.timing(rise, { toValue: 0, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => setDraft(null));
   // 「完了」ボタンなど、画面の外で変わったリマインドを反映する
   useEffect(() => subscribeDbChanges(reload), [reload]);
 
-  const save = async () => {
+  const save = async (close: () => void) => {
     if (!draft) return;
     if (!(await ensureNotificationPermission())) {
       notify('通知が許可されていません', 'リマインドを鳴らすには、設定アプリで kakitome の通知を許可してください。リマインド自体は保存されます。');
@@ -100,12 +91,10 @@ export function ReminderSection({ noteId, startAdding = false }: { noteId: strin
       <Pressable onPress={() => setDraft({ at: nextHour(), rrule: null })}>
         <View style={styles.addRow}><MaterialIcons name="alarm-add" size={20} color={p.accentText} /><Text style={styles.add}>リマインドを追加</Text></View>
       </Pressable>
-      <Modal visible={open} transparent animationType="fade" onRequestClose={close}>
-        <Pressable style={styles.scrim} onPress={close}>
-          {draft ? (
-            <Animated.View style={{ transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [400, 0] }) }] }}>
-              <Pressable style={styles.sheet}>
-                <View style={styles.grip} />
+      <Sheet visible={!!draft} onClose={() => setDraft(null)}>
+        {(close) =>
+          draft ? (
+            <>
                 <Text style={styles.sheetTitle}>{draft.id ? 'リマインドを編集' : 'リマインドを追加'}</Text>
                 <View style={styles.chips}>
                   {reminderPresets(new Date()).map((ps) => (
@@ -143,13 +132,12 @@ export function ReminderSection({ noteId, startAdding = false }: { noteId: strin
                 {draft.rrule ? <Text style={styles.hint}>繰り返しは、選んだ時刻（毎週は曜日、毎月は日）に合う次の時刻から始まります。</Text> : null}
                 <View style={styles.actions}>
                   <Pressable onPress={close}><Text style={styles.cancel}>キャンセル</Text></Pressable>
-                  <Pressable onPress={save} disabled={past}><Text style={[styles.add, past ? styles.off : null]}>{draft.id ? '保存' : '追加'}</Text></Pressable>
+                  <Pressable onPress={() => save(close)} disabled={past}><Text style={[styles.add, past ? styles.off : null]}>{draft.id ? '保存' : '追加'}</Text></Pressable>
                 </View>
-              </Pressable>
-            </Animated.View>
-          ) : null}
-        </Pressable>
-      </Modal>
+            </>
+          ) : null
+        }
+      </Sheet>
     </View>
   );
 }
@@ -162,9 +150,6 @@ const makeStyles = (p: Palette) =>
     whenBox: { flex: 1, paddingVertical: 4 },
     when: { ...type.monoMeta, fontSize: 14, color: p.reminderFg },
     off: { color: p.inkDone },
-    scrim: { flex: 1, backgroundColor: p.scrim, justifyContent: 'flex-end' },
-    sheet: { backgroundColor: p.surfaceBar, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, borderTopWidth: 1, borderColor: p.borderStrong, paddingTop: 10, paddingHorizontal: 16, paddingBottom: 30, gap: 12 },
-    grip: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: p.borderStrong },
     sheetTitle: { ...type.sheetTitle, color: p.ink },
     dateButton: { ...type.monoValue, color: p.reminderFg, paddingVertical: 6 },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

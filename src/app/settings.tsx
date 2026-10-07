@@ -2,12 +2,13 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { deleteAllNotes } from '../db/actions';
 import { lastSyncAt, lastSyncError, liveNoteCount, unsentOpCount } from '../db/queries';
 import { isHighQuality, localImageBytes, setHighQuality } from '../media/blob-port';
 import { Group, Row, SectionHeading } from '../components/SettingsRow';
 import { KeepImport } from '../components/KeepImport';
+import { Sheet } from '../components/Sheet';
 import { currentEmail, isSignedIn, signIn, signOut } from '../sync/google-auth';
 import { DevTools } from '../dev/DevTools';
 import { onLocalChange } from '../sync/auto';
@@ -213,10 +214,9 @@ export default function Settings() {
         </Pressable>
       </View>
 
-      <Modal visible={deleteCount !== null} transparent animationType="slide" onRequestClose={() => setDeleteCount(null)}>
-        <Pressable style={styles.scrim} onPress={() => setDeleteCount(null)}>
-          <Pressable style={styles.sheet}>
-            <View style={styles.grip} />
+      <Sheet visible={deleteCount !== null} onClose={() => setDeleteCount(null)}>
+        {(close) => (
+          <>
             <Text style={styles.sheetTitle}>すべてのメモを削除しますか？</Text>
             <Text style={styles.sheetBody}>{deleteCount} 件のメモをすべて削除します。同期している他の端末のメモも削除され、元に戻せません。</Text>
             <Pressable
@@ -224,7 +224,7 @@ export default function Settings() {
               onPress={() => {
                 const n = deleteAllNotes();
                 onLocalChange();
-                setDeleteCount(null);
+                close();
                 showToast(`${n} 件のメモを削除しました`);
                 reload();
               }}
@@ -232,12 +232,12 @@ export default function Settings() {
               <MaterialIcons name="delete-forever" size={20} color={p.onDanger} />
               <Text style={[styles.mainText, { color: p.onDanger }]}>{deleteCount} 件のメモを削除</Text>
             </Pressable>
-            <Pressable style={styles.sheetCancel} onPress={() => setDeleteCount(null)}>
+            <Pressable style={styles.sheetCancel} onPress={close}>
               <Text style={styles.signOutText}>キャンセル</Text>
             </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
+          </>
+        )}
+      </Sheet>
     </ScrollView>
   );
 }
@@ -277,9 +277,6 @@ const makeStyles = (p: Palette) =>
     footer: { alignItems: 'center', gap: 4, marginTop: 24 },
     version: { ...type.monoMeta, color: p.inkDone },
     privacy: { ...type.caption, color: p.accentText },
-    scrim: { flex: 1, backgroundColor: p.scrim, justifyContent: 'flex-end' },
-    sheet: { backgroundColor: p.surfaceBar, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, borderTopWidth: 1, borderColor: p.borderStrong, paddingTop: 10, paddingHorizontal: 16, paddingBottom: 30, gap: 12 },
-    grip: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: p.borderStrong },
     sheetTitle: { ...type.sheetTitle, color: p.ink },
     sheetBody: { ...type.small, color: p.inkSub },
     sheetDelete: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 48, borderRadius: radius.card, backgroundColor: p.danger },
