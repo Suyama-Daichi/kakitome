@@ -106,6 +106,7 @@ export function ReminderSection({ noteId, startAdding = false }: { noteId: strin
                 {Platform.OS === 'web' ? (
                   <input
                     type="datetime-local"
+              lang="ja"
                     value={toLocalInput(draft.at)}
                     onChange={(e) => { const at = new Date(e.target.value); if (!isNaN(at.getTime())) setDraft({ ...draft, at }); }}
                     style={{ font: 'inherit', padding: 8, borderRadius: 8, border: `1px solid ${p.borderControl}`, background: p.surface, color: p.reminderFg, alignSelf: 'flex-start' }}

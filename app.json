@@ -10,7 +10,9 @@
     "ios": {
       "bundleIdentifier": "app.kakitome",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDevelopmentRegion": "ja",
+        "CFBundleLocalizations": ["ja"]
       }
     },
     "android": {
