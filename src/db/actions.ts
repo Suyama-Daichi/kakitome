@@ -82,6 +82,12 @@ export function addReminder(noteId: string, fireAt: Date, rrule: string | null):
   });
 }
 
+/** 日時と繰り返しを変える。変えたら鳴るように有効に戻す */
+export function updateReminder(id: string, fireAt: Date, rrule: string | null) {
+  const { ctx, tx } = openCore();
+  tx(() => applyLocalOp(ctx, 'reminder', id, { fire_at: fireAt.toISOString(), timezone: deviceTimeZone(), rrule, enabled: 1 }));
+}
+
 export function setReminderEnabled(id: string, enabled: boolean) {
   const { ctx, tx } = openCore();
   tx(() => applyLocalOp(ctx, 'reminder', id, { enabled: enabled ? 1 : 0 }));
