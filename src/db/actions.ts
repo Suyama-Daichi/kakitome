@@ -1,8 +1,9 @@
 import { keyBetween } from '../core/fractional';
 import { applyLocalOp } from '../core/merge';
+import { completeFields } from '../core/reminders';
 import type { Json } from '../core/ops';
 import { getDb, openCore } from './index';
-import { getNote, itemChecked, maxAttachmentKey, maxItemKey, minNoteKey } from './queries';
+import { getNote, getReminder, itemChecked, maxAttachmentKey, maxItemKey, minNoteKey } from './queries';
 
 /** アプリ・ウィジェット共通。変更は必ず applyLocalOp 経由 */
 export function toggleItem(itemId: string) {
@@ -84,6 +85,16 @@ export function addReminder(noteId: string, fireAt: Date, rrule: string | null):
 export function setReminderEnabled(id: string, enabled: boolean) {
   const { ctx, tx } = openCore();
   tx(() => applyLocalOp(ctx, 'reminder', id, { enabled: enabled ? 1 : 0 }));
+}
+
+/** 通知の「完了」。単発は無効にし、繰り返しはそのまま（core の completeFields）。op を出したら true */
+export function completeReminder(id: string): boolean {
+  const rem = getReminder(id);
+  const fields = rem && completeFields({ rrule: rem.rrule, enabled: !!rem.enabled });
+  if (!fields) return false;
+  const { ctx, tx } = openCore();
+  tx(() => applyLocalOp(ctx, 'reminder', id, fields));
+  return true;
 }
 
 export function deleteReminder(id: string) {

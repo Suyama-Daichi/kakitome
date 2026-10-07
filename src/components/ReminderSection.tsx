@@ -1,8 +1,9 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { addReminder, deleteReminder, setReminderEnabled } from '../db/actions';
+import { subscribeDbChanges } from '../db/changes';
 import { listReminders, type ReminderView } from '../db/queries';
 import { ensureNotificationPermission } from '../notifications/reconcile';
 import { onLocalChange } from '../sync/auto';
@@ -33,21 +34,19 @@ function nextHour(): Date {
 function pickAndroid(value: Date, done: (d: Date) => void) {
   DateTimePickerAndroid.open({
     value, mode: 'date',
-    onChange: (e, date) => {
-      if (e.type !== 'set' || !date) return;
-      DateTimePickerAndroid.open({
-        value: date, mode: 'time', is24Hour: true,
-        onChange: (e2, t) => { if (e2.type === 'set' && t) done(t); },
-      });
-    },
+    onValueChange: (_, date) =>
+      DateTimePickerAndroid.open({ value: date, mode: 'time', is24Hour: true, onValueChange: (_e, t) => done(t) }),
   });
 }
 
-export function ReminderSection({ noteId }: { noteId: string }) {
+/** startAdding: 通知の「スヌーズ」から開いたとき、新しいリマインドの入力欄を開いた状態で始める */
+export function ReminderSection({ noteId, startAdding = false }: { noteId: string; startAdding?: boolean }) {
   const [p, styles] = useThemed(makeStyles);
   const [items, setItems] = useState<ReminderView[]>(() => listReminders(noteId));
   const reload = useCallback(() => setItems(listReminders(noteId)), [noteId]);
-  const [draft, setDraft] = useState<{ at: Date; rrule: string | null } | null>(null);
+  const [draft, setDraft] = useState<{ at: Date; rrule: string | null } | null>(() => (startAdding ? { at: nextHour(), rrule: null } : null));
+  // 「完了」ボタンなど、画面の外で変わったリマインドを反映する
+  useEffect(() => subscribeDbChanges(reload), [reload]);
 
   const save = async () => {
     if (!draft) return;
@@ -91,7 +90,7 @@ export function ReminderSection({ noteId }: { noteId: string }) {
               <Text style={styles.hint}>（開発用）90秒後にする</Text>
             </Pressable>
           ) : null}
-          {Platform.OS === 'ios' ? <DateTimePicker value={draft.at} mode="datetime" onChange={(_, at) => at && setDraft({ ...draft, at })} /> : null}
+          {Platform.OS === 'ios' ? <DateTimePicker value={draft.at} mode="datetime" onValueChange={(_, at) => setDraft({ ...draft, at })} /> : null}
           <View style={styles.chips}>
             {REPEATS.map((r) => (
               <Pressable key={r.label} style={[styles.chip, draft.rrule === r.rrule ? styles.chipOn : null]} onPress={() => setDraft({ ...draft, rrule: r.rrule })}>

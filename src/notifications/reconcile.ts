@@ -5,6 +5,10 @@ import { getDb } from '../db';
 import { reminderInputs, scheduledNotifications } from '../db/queries';
 
 const CHANNEL = 'reminders';
+/** 通知のボタン（設計 §9）。識別子に `:` と `-` は使えない */
+export const REMINDER_CATEGORY = 'reminder';
+export const ACTION_DONE = 'done';
+export const ACTION_SNOOZE = 'snooze';
 const T = Notifications.SchedulableTriggerInputTypes;
 
 // 他端末の同期で届いたリマインドも鳴らす（全端末で鳴らす: 設計 §9）。アプリ前面でも表示する
@@ -66,6 +70,12 @@ async function doReconcile(now: Date) {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(CHANNEL, { name: 'リマインド', importance: Notifications.AndroidImportance.HIGH });
   }
+  // 「完了」は Android ではアプリを開かずにバックグラウンドで処理する。iOS は停止中だと処理が届かないことがあるので開く。
+  // 「スヌーズ」はアプリでそのメモを開き、新しいリマインドを設定してもらう
+  await Notifications.setNotificationCategoryAsync(REMINDER_CATEGORY, [
+    { identifier: ACTION_DONE, buttonTitle: '完了', options: { opensAppToForeground: Platform.OS === 'ios' } },
+    { identifier: ACTION_SNOOZE, buttonTitle: 'スヌーズ', options: { opensAppToForeground: true } },
+  ]);
   if (!(await Notifications.getPermissionsAsync()).granted) return; // 許可後の次の調停で予約される
 
   const db = getDb();
@@ -79,7 +89,7 @@ async function doReconcile(now: Date) {
   }
   for (const d of plan.schedule) {
     const id = await Notifications.scheduleNotificationAsync({
-      content: { title: d.title, body: d.body, data: { noteId: d.noteId } },
+      content: { title: d.title, body: d.body, data: { noteId: d.noteId, reminderId: d.reminderId }, categoryIdentifier: REMINDER_CATEGORY },
       trigger: toExpoTrigger(d.trigger),
     });
     db.runSync('INSERT OR REPLACE INTO scheduled_notifications (reminder_id, notification_id, fire_at) VALUES (?, ?, ?)', d.reminderId, id, d.signature);

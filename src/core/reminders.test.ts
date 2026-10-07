@@ -1,5 +1,5 @@
 import fc from 'fast-check';
-import { nextOccurrence, parseRule, planReminders, type NoteInfo, type PlanInput, type ReminderRow } from './reminders';
+import { completeFields, nextOccurrence, parseRule, planReminders, type NoteInfo, type PlanInput, type ReminderRow } from './reminders';
 
 const NOW = new Date('2026-10-03T00:00:00Z');
 const TOKYO = 'Asia/Tokyo';
@@ -125,5 +125,21 @@ describe('planReminders', () => {
       }),
       { numRuns: 100 },
     );
+  });
+});
+
+describe('completeFields（通知の「完了」）', () => {
+  test('有効な単発は無効にする', () => {
+    expect(completeFields({ rrule: null, enabled: true })).toEqual({ enabled: 0 });
+  });
+  test('未対応の繰り返し（単発として鳴る）も無効にする', () => {
+    expect(completeFields({ rrule: 'FREQ=WEEKLY;BYDAY=MO', enabled: true })).toEqual({ enabled: 0 });
+  });
+  test('繰り返しは変えない（次回も鳴る）', () => {
+    expect(completeFields({ rrule: 'FREQ=DAILY', enabled: true })).toBeNull();
+    expect(completeFields({ rrule: 'FREQ=WEEKLY;INTERVAL=2', enabled: true })).toBeNull();
+  });
+  test('無効化済みなら op を出さない（重複して届いても 1 回だけ）', () => {
+    expect(completeFields({ rrule: null, enabled: false })).toBeNull();
   });
 });
