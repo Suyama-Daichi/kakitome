@@ -463,6 +463,7 @@ appDataFolder/
 - react-native-android-widget を Expo Config Plugin で導入する
 - 表示: 1つのメモのチェックリスト（未完了→完了の順、§3.4 と同じクエリ）。項目が多いときは、項目の部分をスクロールできる（`ListWidget`。見出しと進捗バーは固定。各項目は画像として描かれ、項目全体のタップが `TOGGLE_ITEM` になる。1 つのウィジェットに置ける `ListWidget` は 2 つまで）。表示するメモはウィジェットごとに選ぶ（追加時と、長押しの設定から開く設定画面。`widgetFeatures: reconfigurable`、`registerWidgetConfigurationScreen`）。選択は `sync_state` の `widget_note:<widgetId>` に保存する（この端末だけの設定で、同期しない）。未選択、または選んだメモが削除済みなら、一覧の先頭のメモを表示する
 - 操作: 項目タップで `clickAction` + `clickActionData: { itemId }` を発火 → タスクハンドラで `applyLocalOp` を呼び `checked` をトグル → 再描画
+- 見出し（タイトルと進捗）のタップでアプリを開く: メモがあれば `OPEN_URI`（`kakitome:///note/<id>`。iOS の `widgetURL` と同じ）でそのメモを、無ければ `OPEN_APP` で一覧を開く。どちらもライブラリの組み込み動作で、タスクハンドラは呼ばれない
 - Drive への送信は次回起動時またはバックグラウンドタスクで行う
 - 画像は表示しない
 - **同期コア（`applyLocalOp` 等）はヘッドレス JS でも動くよう、UI・画像処理系の依存を持たせない**

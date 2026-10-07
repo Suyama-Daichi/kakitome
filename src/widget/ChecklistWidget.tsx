@@ -14,7 +14,12 @@ function Widget({ note, p }: { note?: NoteView; p: Palette }) {
         borderWidth: 1, borderColor: p.border as `#${string}`, flexDirection: 'column',
       }}
     >
-      <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+      {/* 見出しのタップでアプリを開く（メモがあればそのメモ。iOS の widgetURL と同じ動き）。タスクハンドラは呼ばれない */}
+      <FlexWidget
+        clickAction={note ? 'OPEN_URI' : 'OPEN_APP'}
+        clickActionData={note ? { uri: `kakitome:///note/${note.id}` } : undefined}
+        style={{ width: 'match_parent', flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}
+      >
         <FlexWidget style={{ flex: 1 }}>
           <TextWidget text={note?.title || (note ? '無題のメモ' : 'メモがありません')} style={{ fontSize: 15, fontWeight: 'bold', color: p.ink as `#${string}` }} />
         </FlexWidget>
