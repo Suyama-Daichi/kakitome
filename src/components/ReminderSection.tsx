@@ -1,7 +1,7 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { nextOccurrence, reminderPresets } from '../core/reminders';
 import { addReminder, deleteReminder, setReminderEnabled, updateReminder } from '../db/actions';
 import { subscribeDbChanges } from '../db/changes';
@@ -87,52 +87,57 @@ export function ReminderSection({ noteId, startAdding = false }: { noteId: strin
           </View>
         );
       })}
-      {draft ? (
-        <View style={styles.draft}>
-          <View style={styles.chips}>
-            {reminderPresets(new Date()).map((ps) => (
-              <Pressable key={ps.label} style={[styles.chip, draft.at.getTime() === ps.at.getTime() ? styles.chipOn : null]} onPress={() => setDraft({ ...draft, at: ps.at })}>
-                <Text style={[styles.chipText, draft.at.getTime() === ps.at.getTime() ? styles.chipOnText : null]}>{ps.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-          {Platform.OS === 'web' ? (
-            <input
-              type="datetime-local"
-              value={toLocalInput(draft.at)}
-              onChange={(e) => { const at = new Date(e.target.value); if (!isNaN(at.getTime())) setDraft({ ...draft, at }); }}
-              style={{ font: 'inherit', padding: 8, borderRadius: 8, border: `1px solid ${p.borderControl}`, background: p.surface, color: p.reminderFg, alignSelf: 'flex-start' }}
-            />
-          ) : (
-            <Pressable onPress={() => Platform.OS === 'android' && pickAndroid(draft.at, (at) => setDraft({ ...draft, at }))}>
-              <Text style={styles.dateButton}>{fmt(draft.at)}</Text>
-            </Pressable>
-          )}
-          {__DEV__ ? (
-            <Pressable onPress={() => setDraft({ ...draft, at: new Date(Date.now() + 90_000) })}>
-              <Text style={styles.hint}>（開発用）90秒後にする</Text>
+      <Pressable onPress={() => setDraft({ at: nextHour(), rrule: null })}>
+        <View style={styles.addRow}><MaterialIcons name="alarm-add" size={20} color={p.accentText} /><Text style={styles.add}>リマインドを追加</Text></View>
+      </Pressable>
+      <Modal visible={!!draft} transparent animationType="slide" onRequestClose={() => setDraft(null)}>
+        <Pressable style={styles.scrim} onPress={() => setDraft(null)}>
+          {draft ? (
+            <Pressable style={styles.sheet}>
+              <View style={styles.grip} />
+              <Text style={styles.sheetTitle}>{draft.id ? 'リマインドを編集' : 'リマインドを追加'}</Text>
+              <View style={styles.chips}>
+                {reminderPresets(new Date()).map((ps) => (
+                  <Pressable key={ps.label} style={[styles.chip, draft.at.getTime() === ps.at.getTime() ? styles.chipOn : null]} onPress={() => setDraft({ ...draft, at: ps.at })}>
+                    <Text style={[styles.chipText, draft.at.getTime() === ps.at.getTime() ? styles.chipOnText : null]}>{ps.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              {Platform.OS === 'web' ? (
+                <input
+                  type="datetime-local"
+                  value={toLocalInput(draft.at)}
+                  onChange={(e) => { const at = new Date(e.target.value); if (!isNaN(at.getTime())) setDraft({ ...draft, at }); }}
+                  style={{ font: 'inherit', padding: 8, borderRadius: 8, border: `1px solid ${p.borderControl}`, background: p.surface, color: p.reminderFg, alignSelf: 'flex-start' }}
+                />
+              ) : (
+                <Pressable onPress={() => Platform.OS === 'android' && pickAndroid(draft.at, (at) => setDraft({ ...draft, at }))}>
+                  <Text style={styles.dateButton}>{fmt(draft.at)}</Text>
+                </Pressable>
+              )}
+              {__DEV__ ? (
+                <Pressable onPress={() => setDraft({ ...draft, at: new Date(Date.now() + 90_000) })}>
+                  <Text style={styles.hint}>（開発用）90秒後にする</Text>
+                </Pressable>
+              ) : null}
+              {Platform.OS === 'ios' ? <DateTimePicker value={draft.at} mode="datetime" onValueChange={(_, at) => setDraft({ ...draft, at })} /> : null}
+              <View style={styles.chips}>
+                {REPEATS.map((r) => (
+                  <Pressable key={r.label} style={[styles.chip, draft.rrule === r.rrule ? styles.chipOn : null]} onPress={() => setDraft({ ...draft, rrule: r.rrule })}>
+                    <Text style={[styles.chipText, draft.rrule === r.rrule ? styles.chipOnText : null]}>{r.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              {past ? <Text style={styles.warn}>過去の日時です。未来の日時を選んでください。</Text> : null}
+              {draft.rrule ? <Text style={styles.hint}>繰り返しは、選んだ時刻（毎週は曜日、毎月は日）に合う次の時刻から始まります。</Text> : null}
+              <View style={styles.actions}>
+                <Pressable onPress={() => setDraft(null)}><Text style={styles.cancel}>キャンセル</Text></Pressable>
+                <Pressable onPress={save} disabled={past}><Text style={[styles.add, past ? styles.off : null]}>{draft.id ? '保存' : '追加'}</Text></Pressable>
+              </View>
             </Pressable>
           ) : null}
-          {Platform.OS === 'ios' ? <DateTimePicker value={draft.at} mode="datetime" onValueChange={(_, at) => setDraft({ ...draft, at })} /> : null}
-          <View style={styles.chips}>
-            {REPEATS.map((r) => (
-              <Pressable key={r.label} style={[styles.chip, draft.rrule === r.rrule ? styles.chipOn : null]} onPress={() => setDraft({ ...draft, rrule: r.rrule })}>
-                <Text style={[styles.chipText, draft.rrule === r.rrule ? styles.chipOnText : null]}>{r.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-          {past ? <Text style={styles.warn}>過去の日時です。未来の日時を選んでください。</Text> : null}
-          {draft.rrule ? <Text style={styles.hint}>繰り返しは、選んだ時刻（毎週は曜日、毎月は日）に合う次の時刻から始まります。</Text> : null}
-          <View style={styles.actions}>
-            <Pressable onPress={() => setDraft(null)}><Text style={styles.cancel}>キャンセル</Text></Pressable>
-            <Pressable onPress={save} disabled={past}><Text style={[styles.add, past ? styles.off : null]}>{draft.id ? '保存' : '追加'}</Text></Pressable>
-          </View>
-        </View>
-      ) : (
-        <Pressable onPress={() => setDraft({ at: nextHour(), rrule: null })}>
-          <View style={styles.addRow}><MaterialIcons name="alarm-add" size={20} color={p.accentText} /><Text style={styles.add}>リマインドを追加</Text></View>
         </Pressable>
-      )}
+      </Modal>
     </View>
   );
 }
@@ -145,7 +150,10 @@ const makeStyles = (p: Palette) =>
     whenBox: { flex: 1, paddingVertical: 4 },
     when: { ...type.monoMeta, fontSize: 14, color: p.reminderFg },
     off: { color: p.inkDone },
-    draft: { gap: 10 },
+    scrim: { flex: 1, backgroundColor: p.scrim, justifyContent: 'flex-end' },
+    sheet: { backgroundColor: p.surfaceBar, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, borderTopWidth: 1, borderColor: p.borderStrong, paddingTop: 10, paddingHorizontal: 16, paddingBottom: 30, gap: 12 },
+    grip: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: p.borderStrong },
+    sheetTitle: { ...type.sheetTitle, color: p.ink },
     dateButton: { ...type.monoValue, color: p.reminderFg, paddingVertical: 6 },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.button, borderWidth: 1, borderColor: p.borderControl },
@@ -154,7 +162,7 @@ const makeStyles = (p: Palette) =>
     chipOnText: { color: p.onAccent },
     warn: { ...type.caption, color: p.dangerFg },
     hint: { ...type.caption, color: p.inkMuted },
-    actions: { flexDirection: 'row', gap: 24 },
+    actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 24, paddingTop: 4 },
     cancel: { ...type.button, color: p.inkSub },
     add: { ...type.item, fontWeight: '500', color: p.accentText },
     addRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36 },
