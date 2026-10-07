@@ -86,6 +86,8 @@
       [
         "expo-widgets",
         {
+          "bundleIdentifier": "app.kakitome.ExpoWidgetsTarget",
+          "groupIdentifier": "group.app.kakitome",
           "widgets": [
             {
               "name": "Checklist",
