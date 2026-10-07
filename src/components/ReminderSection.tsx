@@ -1,7 +1,7 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useCallback, useEffect, useState } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Modal, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { nextOccurrence, reminderPresets } from '../core/reminders';
 import { addReminder, deleteReminder, setReminderEnabled, updateReminder } from '../db/actions';
 import { subscribeDbChanges } from '../db/changes';
@@ -50,6 +50,16 @@ export function ReminderSection({ noteId, startAdding = false }: { noteId: strin
   const [items, setItems] = useState<ReminderView[]>(() => listReminders(noteId));
   const reload = useCallback(() => setItems(listReminders(noteId)), [noteId]);
   const [draft, setDraft] = useState<{ id?: string; at: Date; rrule: string | null } | null>(() => (startAdding ? { at: nextHour(), rrule: null } : null));
+  // 背景はフェード、シートだけ下から上げる（Modal の slide は背景ごと動くため）
+  const open = !!draft;
+  const rise = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!open) return;
+    rise.setValue(0);
+    Animated.timing(rise, { toValue: 1, duration: 250, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [open, rise]);
+  // シートを下げてから閉じる（先に消すと背景だけが残る）
+  const close = () => Animated.timing(rise, { toValue: 0, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => setDraft(null));
   // 「完了」ボタンなど、画面の外で変わったリマインドを反映する
   useEffect(() => subscribeDbChanges(reload), [reload]);
 
@@ -60,7 +70,7 @@ export function ReminderSection({ noteId, startAdding = false }: { noteId: strin
     }
     if (draft.id) updateReminder(draft.id, draft.at, draft.rrule);
     else addReminder(noteId, draft.at, draft.rrule);
-    setDraft(null);
+    close();
     reload();
     onLocalChange();
   };
@@ -90,51 +100,53 @@ export function ReminderSection({ noteId, startAdding = false }: { noteId: strin
       <Pressable onPress={() => setDraft({ at: nextHour(), rrule: null })}>
         <View style={styles.addRow}><MaterialIcons name="alarm-add" size={20} color={p.accentText} /><Text style={styles.add}>リマインドを追加</Text></View>
       </Pressable>
-      <Modal visible={!!draft} transparent animationType="slide" onRequestClose={() => setDraft(null)}>
-        <Pressable style={styles.scrim} onPress={() => setDraft(null)}>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={close}>
+        <Pressable style={styles.scrim} onPress={close}>
           {draft ? (
-            <Pressable style={styles.sheet}>
-              <View style={styles.grip} />
-              <Text style={styles.sheetTitle}>{draft.id ? 'リマインドを編集' : 'リマインドを追加'}</Text>
-              <View style={styles.chips}>
-                {reminderPresets(new Date()).map((ps) => (
-                  <Pressable key={ps.label} style={[styles.chip, draft.at.getTime() === ps.at.getTime() ? styles.chipOn : null]} onPress={() => setDraft({ ...draft, at: ps.at })}>
-                    <Text style={[styles.chipText, draft.at.getTime() === ps.at.getTime() ? styles.chipOnText : null]}>{ps.label}</Text>
+            <Animated.View style={{ transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [400, 0] }) }] }}>
+              <Pressable style={styles.sheet}>
+                <View style={styles.grip} />
+                <Text style={styles.sheetTitle}>{draft.id ? 'リマインドを編集' : 'リマインドを追加'}</Text>
+                <View style={styles.chips}>
+                  {reminderPresets(new Date()).map((ps) => (
+                    <Pressable key={ps.label} style={[styles.chip, draft.at.getTime() === ps.at.getTime() ? styles.chipOn : null]} onPress={() => setDraft({ ...draft, at: ps.at })}>
+                      <Text style={[styles.chipText, draft.at.getTime() === ps.at.getTime() ? styles.chipOnText : null]}>{ps.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                {Platform.OS === 'web' ? (
+                  <input
+                    type="datetime-local"
+                    value={toLocalInput(draft.at)}
+                    onChange={(e) => { const at = new Date(e.target.value); if (!isNaN(at.getTime())) setDraft({ ...draft, at }); }}
+                    style={{ font: 'inherit', padding: 8, borderRadius: 8, border: `1px solid ${p.borderControl}`, background: p.surface, color: p.reminderFg, alignSelf: 'flex-start' }}
+                  />
+                ) : (
+                  <Pressable onPress={() => Platform.OS === 'android' && pickAndroid(draft.at, (at) => setDraft({ ...draft, at }))}>
+                    <Text style={styles.dateButton}>{fmt(draft.at)}</Text>
                   </Pressable>
-                ))}
-              </View>
-              {Platform.OS === 'web' ? (
-                <input
-                  type="datetime-local"
-                  value={toLocalInput(draft.at)}
-                  onChange={(e) => { const at = new Date(e.target.value); if (!isNaN(at.getTime())) setDraft({ ...draft, at }); }}
-                  style={{ font: 'inherit', padding: 8, borderRadius: 8, border: `1px solid ${p.borderControl}`, background: p.surface, color: p.reminderFg, alignSelf: 'flex-start' }}
-                />
-              ) : (
-                <Pressable onPress={() => Platform.OS === 'android' && pickAndroid(draft.at, (at) => setDraft({ ...draft, at }))}>
-                  <Text style={styles.dateButton}>{fmt(draft.at)}</Text>
-                </Pressable>
-              )}
-              {__DEV__ ? (
-                <Pressable onPress={() => setDraft({ ...draft, at: new Date(Date.now() + 90_000) })}>
-                  <Text style={styles.hint}>（開発用）90秒後にする</Text>
-                </Pressable>
-              ) : null}
-              {Platform.OS === 'ios' ? <DateTimePicker value={draft.at} mode="datetime" onValueChange={(_, at) => setDraft({ ...draft, at })} /> : null}
-              <View style={styles.chips}>
-                {REPEATS.map((r) => (
-                  <Pressable key={r.label} style={[styles.chip, draft.rrule === r.rrule ? styles.chipOn : null]} onPress={() => setDraft({ ...draft, rrule: r.rrule })}>
-                    <Text style={[styles.chipText, draft.rrule === r.rrule ? styles.chipOnText : null]}>{r.label}</Text>
+                )}
+                {__DEV__ ? (
+                  <Pressable onPress={() => setDraft({ ...draft, at: new Date(Date.now() + 90_000) })}>
+                    <Text style={styles.hint}>（開発用）90秒後にする</Text>
                   </Pressable>
-                ))}
-              </View>
-              {past ? <Text style={styles.warn}>過去の日時です。未来の日時を選んでください。</Text> : null}
-              {draft.rrule ? <Text style={styles.hint}>繰り返しは、選んだ時刻（毎週は曜日、毎月は日）に合う次の時刻から始まります。</Text> : null}
-              <View style={styles.actions}>
-                <Pressable onPress={() => setDraft(null)}><Text style={styles.cancel}>キャンセル</Text></Pressable>
-                <Pressable onPress={save} disabled={past}><Text style={[styles.add, past ? styles.off : null]}>{draft.id ? '保存' : '追加'}</Text></Pressable>
-              </View>
-            </Pressable>
+                ) : null}
+                {Platform.OS === 'ios' ? <DateTimePicker value={draft.at} mode="datetime" onValueChange={(_, at) => setDraft({ ...draft, at })} /> : null}
+                <View style={styles.chips}>
+                  {REPEATS.map((r) => (
+                    <Pressable key={r.label} style={[styles.chip, draft.rrule === r.rrule ? styles.chipOn : null]} onPress={() => setDraft({ ...draft, rrule: r.rrule })}>
+                      <Text style={[styles.chipText, draft.rrule === r.rrule ? styles.chipOnText : null]}>{r.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                {past ? <Text style={styles.warn}>過去の日時です。未来の日時を選んでください。</Text> : null}
+                {draft.rrule ? <Text style={styles.hint}>繰り返しは、選んだ時刻（毎週は曜日、毎月は日）に合う次の時刻から始まります。</Text> : null}
+                <View style={styles.actions}>
+                  <Pressable onPress={close}><Text style={styles.cancel}>キャンセル</Text></Pressable>
+                  <Pressable onPress={save} disabled={past}><Text style={[styles.add, past ? styles.off : null]}>{draft.id ? '保存' : '追加'}</Text></Pressable>
+                </View>
+              </Pressable>
+            </Animated.View>
           ) : null}
         </Pressable>
       </Modal>
