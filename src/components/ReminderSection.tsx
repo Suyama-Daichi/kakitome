@@ -34,13 +34,8 @@ function nextHour(): Date {
 function pickAndroid(value: Date, done: (d: Date) => void) {
   DateTimePickerAndroid.open({
     value, mode: 'date',
-    onChange: (e, date) => {
-      if (e.type !== 'set' || !date) return;
-      DateTimePickerAndroid.open({
-        value: date, mode: 'time', is24Hour: true,
-        onChange: (e2, t) => { if (e2.type === 'set' && t) done(t); },
-      });
-    },
+    onValueChange: (_, date) =>
+      DateTimePickerAndroid.open({ value: date, mode: 'time', is24Hour: true, onValueChange: (_e, t) => done(t) }),
   });
 }
 
@@ -95,7 +90,7 @@ export function ReminderSection({ noteId, startAdding = false }: { noteId: strin
               <Text style={styles.hint}>（開発用）90秒後にする</Text>
             </Pressable>
           ) : null}
-          {Platform.OS === 'ios' ? <DateTimePicker value={draft.at} mode="datetime" onChange={(_, at) => at && setDraft({ ...draft, at })} /> : null}
+          {Platform.OS === 'ios' ? <DateTimePicker value={draft.at} mode="datetime" onValueChange={(_, at) => setDraft({ ...draft, at })} /> : null}
           <View style={styles.chips}>
             {REPEATS.map((r) => (
               <Pressable key={r.label} style={[styles.chip, draft.rrule === r.rrule ? styles.chipOn : null]} onPress={() => setDraft({ ...draft, rrule: r.rrule })}>
