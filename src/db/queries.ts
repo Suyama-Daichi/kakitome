@@ -146,6 +146,9 @@ export const listReminders = (noteId: string) =>
   );
 
 /** 調停の入力。通知の本文は「最初の未完了項目、なければ本文の1行目」 */
+export const getReminder = (id: string) =>
+  getDb().getFirstSync<{ rrule: string | null; enabled: number }>('SELECT rrule, enabled FROM reminders WHERE id = ? AND deleted = 0', id) ?? undefined;
+
 export function reminderInputs() {
   const db = getDb();
   const reminders = db

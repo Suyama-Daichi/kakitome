@@ -68,7 +68,9 @@ export default function NoteEditor() {
   const [drag, setDrag] = useState<{ from: number; to: number } | null>(null);
   const dragY = useRef(new Animated.Value(0)).current;
   const lastDy = useRef(0);
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, reminder } = useLocalSearchParams<{ id: string; reminder?: string }>();
+  const scroll = useRef<ScrollView>(null);
+  const scrolledToReminder = useRef(false);
   const note = getNote(id);
   const [title, setTitle] = useState(note?.title ?? '');
   const [body, setBody] = useState(note?.body ?? '');
@@ -144,7 +146,7 @@ export default function NoteEditor() {
   const togglePin = () => { const v = pinned ? 0 : 1; setPinned(v); updateNote(id, { pinned: v }); };
 
   return (
-    <ScrollView style={styles.container} scrollEnabled={!drag} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+    <ScrollView ref={scroll} style={styles.container} scrollEnabled={!drag} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
       {Platform.OS === 'ios' ? (
         // iOS 26 では headerRight の要素が 1 つの枠にまとまるため、ボタンごとに独立した枠にする
         <Stack.Toolbar placement="right">
@@ -215,7 +217,16 @@ export default function NoteEditor() {
         ) : null}
       </View>
       <AttachmentSection noteId={id} />
-      <ReminderSection noteId={id} />
+      <View
+        onLayout={(e) => {
+          // 通知の「スヌーズ」から開いたときは、リマインドの入力欄まで 1 回だけスクロールする
+          if (reminder !== 'new' || scrolledToReminder.current) return;
+          scrolledToReminder.current = true;
+          scroll.current?.scrollTo({ y: e.nativeEvent.layout.y, animated: true });
+        }}
+      >
+        <ReminderSection noteId={id} startAdding={reminder === 'new'} />
+      </View>
     </ScrollView>
   );
 }

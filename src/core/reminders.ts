@@ -128,6 +128,17 @@ export function nextOccurrence(rem: ReminderRow, now: Date): Date | null {
   return null;
 }
 
+/**
+ * 通知の「完了」ボタンで適用するフィールド。単発（未対応の繰り返しを含む）は無効にし、繰り返しは変えない（次回も鳴る）。
+ * 何もしなくてよいときは null（無効化済みなら op を出さないので、同じ操作が重複して届いても 1 回だけになる）
+ */
+export function completeFields(rem: Pick<ReminderRow, 'rrule' | 'enabled'>): { enabled: 0 } | null {
+  return rem.enabled && !parseRule(rem.rrule) ? { enabled: 0 } : null;
+}
+
+/** 通知の形式の版。通知に付ける内容（ボタンなど）を変えたら上げて、予約済みの通知を作り直させる */
+const NOTIFICATION_FORMAT = 2;
+
 export interface Desired {
   reminderId: string;
   noteId: string;
@@ -185,7 +196,7 @@ export function planReminders({ reminders, notes, scheduled, now, cap = 60 }: Pl
     const trigger = triggerFor(rem, next);
     desired.push({
       reminderId: rem.id, noteId: rem.noteId, trigger, title: info.title, body: info.body,
-      signature: JSON.stringify([trigger, info.title, info.body, rem.noteId]), nextAt: next.getTime(),
+      signature: JSON.stringify([trigger, info.title, info.body, rem.noteId, NOTIFICATION_FORMAT]), nextAt: next.getTime(),
     });
   }
   desired.sort((a, b) => a.nextAt - b.nextAt || (a.reminderId < b.reminderId ? -1 : 1));

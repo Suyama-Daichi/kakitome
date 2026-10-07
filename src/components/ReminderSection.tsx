@@ -1,8 +1,9 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { addReminder, deleteReminder, setReminderEnabled } from '../db/actions';
+import { subscribeDbChanges } from '../db/changes';
 import { listReminders, type ReminderView } from '../db/queries';
 import { ensureNotificationPermission } from '../notifications/reconcile';
 import { onLocalChange } from '../sync/auto';
@@ -43,11 +44,14 @@ function pickAndroid(value: Date, done: (d: Date) => void) {
   });
 }
 
-export function ReminderSection({ noteId }: { noteId: string }) {
+/** startAdding: 通知の「スヌーズ」から開いたとき、新しいリマインドの入力欄を開いた状態で始める */
+export function ReminderSection({ noteId, startAdding = false }: { noteId: string; startAdding?: boolean }) {
   const [p, styles] = useThemed(makeStyles);
   const [items, setItems] = useState<ReminderView[]>(() => listReminders(noteId));
   const reload = useCallback(() => setItems(listReminders(noteId)), [noteId]);
-  const [draft, setDraft] = useState<{ at: Date; rrule: string | null } | null>(null);
+  const [draft, setDraft] = useState<{ at: Date; rrule: string | null } | null>(() => (startAdding ? { at: nextHour(), rrule: null } : null));
+  // 「完了」ボタンなど、画面の外で変わったリマインドを反映する
+  useEffect(() => subscribeDbChanges(reload), [reload]);
 
   const save = async () => {
     if (!draft) return;
