@@ -1,5 +1,5 @@
 import fc from 'fast-check';
-import { completeFields, nextOccurrence, parseRule, planReminders, type NoteInfo, type PlanInput, type ReminderRow } from './reminders';
+import { completeFields, nextOccurrence, reminderPresets, parseRule, planReminders, type NoteInfo, type PlanInput, type ReminderRow } from './reminders';
 
 const NOW = new Date('2026-10-03T00:00:00Z');
 const TOKYO = 'Asia/Tokyo';
@@ -141,5 +141,23 @@ describe('completeFields（通知の「完了」）', () => {
   });
   test('無効化済みなら op を出さない（重複して届いても 1 回だけ）', () => {
     expect(completeFields({ rrule: null, enabled: false })).toBeNull();
+  });
+});
+
+describe('reminderPresets', () => {
+  const labels = (now: Date) => reminderPresets(now).map((p) => p.label);
+  test('昼は今日の夕方を含み、すべて未来', () => {
+    const now = new Date(2026, 9, 7, 10, 30, 15); // 水曜
+    const ps = reminderPresets(now);
+    expect(ps.map((p) => p.label)).toEqual(['1時間後', '今日 18:00', '明日 9:00', '来週月曜 9:00']);
+    expect(ps[0].at).toEqual(new Date(2026, 9, 7, 11, 30));
+    expect(ps[3].at).toEqual(new Date(2026, 9, 12, 9));
+    for (const p of ps) expect(p.at.getTime()).toBeGreaterThan(now.getTime());
+  });
+  test('17時以降は今日の夕方を出さない', () => {
+    expect(labels(new Date(2026, 9, 7, 17, 0))).not.toContain('今日 18:00');
+  });
+  test('月曜は翌週の月曜', () => {
+    expect(reminderPresets(new Date(2026, 9, 12, 8))[3].at).toEqual(new Date(2026, 9, 19, 9));
   });
 });

@@ -208,3 +208,21 @@ export function planReminders({ reminders, notes, scheduled, now, cap = 60 }: Pl
   const kept = new Set(scheduled.filter((s) => wanted.get(s.reminderId)?.signature === s.signature).map((s) => s.reminderId));
   return { cancel, schedule: [...wanted.values()].filter((d) => !kept.has(d.reminderId)) };
 }
+
+/** リマインド入力のすぐ選べる候補（端末のローカル時刻）。過去になる候補は出さない */
+export function reminderPresets(now: Date): { label: string; at: Date }[] {
+  const at = (days: number, h: number) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() + days);
+    d.setHours(h, 0, 0, 0);
+    return d;
+  };
+  const inHour = new Date(now);
+  inHour.setHours(now.getHours() + 1, now.getMinutes(), 0, 0);
+  const presets = [{ label: '1時間後', at: inHour }];
+  // 今日の夕方は、1時間後と同じかそれより前なら出さない
+  if (at(0, 18) > inHour) presets.push({ label: '今日 18:00', at: at(0, 18) });
+  presets.push({ label: '明日 9:00', at: at(1, 9) });
+  presets.push({ label: '来週月曜 9:00', at: at(((8 - now.getDay()) % 7) || 7, 9) });
+  return presets;
+}
