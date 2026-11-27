@@ -16,6 +16,9 @@ import { applyThemeMode, getThemeMode } from '../ui/theme-mode';
 // 描画中の例外で画面が真っ白にならないよう、エラーの内容と「再試行」を出す
 export { ErrorBoundary } from 'expo-router';
 
+// ウィジェットや通知のリンクでメモを直接開いても、下に一覧を積んで戻れるようにする
+export const unstable_settings = { anchor: 'index' };
+
 export default function RootLayout() {
   const { ready, error } = useDbReady();
   if (error) {
